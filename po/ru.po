@@ -7423,6 +7423,110 @@ msgstr "Команда для «Открыть в терминале». Оста
 msgid "Terminal _Command"
 msgstr "Команда _терминала"
 
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Interface"
+msgstr "Интерфейс"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Window"
+msgstr "Окно"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Choose where the sidebars are displayed and how large the preview panel is."
+msgstr "Выберите, где расположены боковые панели и насколько широкой должна быть панель предпросмотра."
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Sidebar _Position"
+msgstr "_Положение боковой панели"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "_Preview Panel Position"
+msgstr "Положение панели _предпросмотра"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Preview Panel _Width"
+msgstr "_Ширина панели предпросмотра"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Width of the preview panel in pixels."
+msgstr "Ширина панели предпросмотра в пикселях."
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Lists and Grid"
+msgstr "Списки и сетка"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Adjust how files are arranged and decorated in the views."
+msgstr "Настройте расположение и оформление файлов в представлениях."
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Use _Dense Rows in the List View"
+msgstr "Плотные строки в _списке"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Reduce the vertical spacing between rows."
+msgstr "Уменьшить расстояние между строками по вертикали."
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Show Column _Separators"
+msgstr "Показывать разделители _столбцов"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Show Row _Separators"
+msgstr "Показывать разделители _строк"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Number of _Lines for File Names"
+msgstr "Количество _строк для имён файлов"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Maximum number of lines used for names below icons in the grid view."
+msgstr "Максимальное число строк для имён под значками в сетке."
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Appearance"
+msgstr "Оформление"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Compact Sidebar _Rows"
+msgstr "Компактные _строки боковой панели"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Small _Icons in the Sidebar"
+msgstr "Маленькие _значки на боковой панели"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "_Rounded Thumbnail Corners"
+msgstr "_Скруглённые углы миниатюр"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Thumbnail _Shadows"
+msgstr "_Тени миниатюр"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Draw a subtle shadow and outline around thumbnails."
+msgstr "Рисовать лёгкую тень и обводку вокруг миниатюр."
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Enable _Animations"
+msgstr "Включить _анимации"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Show files and folders whose names start with a dot."
+msgstr "Показывать файлы и папки, имена которых начинаются с точки."
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Left"
+msgstr "Слева"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Right"
+msgstr "Справа"
+
+#: src/resources/menu/nautilus-files-view-context-menus.ui
+msgid "Open in BlackBox"
+msgstr "Открыть в BlackBox"
+
 #~ msgid "Wallpapers"
 #~ msgstr "Обои"
 

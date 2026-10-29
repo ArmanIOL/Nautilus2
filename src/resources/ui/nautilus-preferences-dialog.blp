@@ -128,6 +128,110 @@ Adw.PreferencesDialog preferences_dialog {
   }
 
   Adw.PreferencesPage {
+    title: _("Interface");
+
+    Adw.PreferencesGroup {
+      title: _("Window");
+      description: _("Choose where the sidebars are displayed and how large the preview panel is.");
+
+      Adw.ComboRow sidebar_position_row {
+        title: _("Sidebar _Position");
+        use-underline: true;
+      }
+
+      Adw.ComboRow preview_panel_position_row {
+        title: _("_Preview Panel Position");
+        use-underline: true;
+      }
+
+      Adw.SpinRow preview_panel_width_row {
+        title: _("Preview Panel _Width");
+        subtitle: _("Width of the preview panel in pixels.");
+        use-underline: true;
+        digits: 0;
+        adjustment: Adjustment {
+          lower: 240;
+          upper: 600;
+          step-increment: 20;
+        };
+      }
+    }
+
+    Adw.PreferencesGroup {
+      title: _("Lists and Grid");
+      description: _("Adjust how files are arranged and decorated in the views.");
+
+      Adw.SwitchRow dense_list_rows_row {
+        title: _("Use _Dense Rows in the List View");
+        subtitle: _("Reduce the vertical spacing between rows.");
+        use-underline: true;
+      }
+
+      Adw.SwitchRow list_column_separators_row {
+        title: _("Show Column _Separators");
+        use-underline: true;
+      }
+
+      Adw.SwitchRow list_row_separators_row {
+        title: _("Show Row _Separators");
+        use-underline: true;
+      }
+
+      Adw.SpinRow grid_label_lines_row {
+        title: _("Number of _Lines for File Names");
+        subtitle: _("Maximum number of lines used for names below icons in the grid view.");
+        use-underline: true;
+        digits: 0;
+        adjustment: Adjustment {
+          lower: 1;
+          upper: 3;
+          step-increment: 1;
+        };
+      }
+    }
+
+    Adw.PreferencesGroup {
+      title: _("Appearance");
+
+      Adw.SwitchRow sidebar_compact_row {
+        title: _("Compact Sidebar _Rows");
+        use-underline: true;
+      }
+
+      Adw.SwitchRow sidebar_small_icons_row {
+        title: _("Small _Icons in the Sidebar");
+        use-underline: true;
+      }
+
+      Adw.SwitchRow rounded_thumbnails_row {
+        title: _("_Rounded Thumbnail Corners");
+        use-underline: true;
+      }
+
+      Adw.SwitchRow thumbnail_shadow_row {
+        title: _("Thumbnail _Shadows");
+        subtitle: _("Draw a subtle shadow and outline around thumbnails.");
+        use-underline: true;
+      }
+
+      Adw.SwitchRow animations_row {
+        title: _("Enable _Animations");
+        use-underline: true;
+      }
+    }
+
+    Adw.PreferencesGroup {
+      title: _("Files");
+
+      Adw.SwitchRow show_hidden_files_row {
+        title: _("Show _Hidden Files");
+        subtitle: _("Show files and folders whose names start with a dot.");
+        use-underline: true;
+      }
+    }
+  }
+
+  Adw.PreferencesPage {
     title: _("Sidebar");
 
     Adw.PreferencesGroup {

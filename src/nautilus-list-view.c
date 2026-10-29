@@ -1086,6 +1086,34 @@ on_model_changed (NautilusListView *self)
 }
 
 static void
+apply_interface_list_preferences (NautilusListView *self)
+{
+    gboolean dense_rows;
+
+    dense_rows = nautilus_preferences_get_boolean (NAUTILUS_PREFERENCES_UI_DENSE_LIST_ROWS,
+                                                   FALSE);
+
+    if (dense_rows)
+    {
+        gtk_widget_add_css_class (GTK_WIDGET (self), "dense-rows");
+    }
+    else
+    {
+        gtk_widget_remove_css_class (GTK_WIDGET (self), "dense-rows");
+    }
+
+    if (self->view_ui != NULL)
+    {
+        gtk_column_view_set_show_column_separators (self->view_ui,
+                                                    nautilus_preferences_get_boolean (NAUTILUS_PREFERENCES_UI_LIST_COLUMN_SEPARATORS,
+                                                                                      FALSE));
+        gtk_column_view_set_show_row_separators (self->view_ui,
+                                                 nautilus_preferences_get_boolean (NAUTILUS_PREFERENCES_UI_LIST_ROW_SEPARATORS,
+                                                                                   FALSE));
+    }
+}
+
+static void
 nautilus_list_view_init (NautilusListView *self)
 {
     GtkWidget *scrolled_window = nautilus_list_base_get_scrolled_window (NAUTILUS_LIST_BASE (self));
@@ -1113,6 +1141,17 @@ nautilus_list_view_init (NautilusListView *self)
 
     self->view_ui = create_view_ui (self);
     nautilus_list_base_setup_gestures (NAUTILUS_LIST_BASE (self));
+
+    apply_interface_list_preferences (self);
+    g_signal_connect_swapped (nautilus_preferences,
+                              "changed::" NAUTILUS_PREFERENCES_UI_DENSE_LIST_ROWS,
+                              G_CALLBACK (apply_interface_list_preferences), self);
+    g_signal_connect_swapped (nautilus_preferences,
+                              "changed::" NAUTILUS_PREFERENCES_UI_LIST_COLUMN_SEPARATORS,
+                              G_CALLBACK (apply_interface_list_preferences), self);
+    g_signal_connect_swapped (nautilus_preferences,
+                              "changed::" NAUTILUS_PREFERENCES_UI_LIST_ROW_SEPARATORS,
+                              G_CALLBACK (apply_interface_list_preferences), self);
 
     setup_view_columns (self);
 

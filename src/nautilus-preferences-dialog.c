@@ -71,6 +71,32 @@
         "tooltip_date_created_row"
 #define NAUTILUS_PREFERENCES_DIALOG_TERMINAL_COMMAND_WIDGET                    \
         "terminal_command_row"
+#define NAUTILUS_PREFERENCES_DIALOG_SIDEBAR_POSITION_WIDGET                    \
+        "sidebar_position_row"
+#define NAUTILUS_PREFERENCES_DIALOG_PREVIEW_PANEL_POSITION_WIDGET              \
+        "preview_panel_position_row"
+#define NAUTILUS_PREFERENCES_DIALOG_PREVIEW_PANEL_WIDTH_WIDGET                 \
+        "preview_panel_width_row"
+#define NAUTILUS_PREFERENCES_DIALOG_DENSE_LIST_ROWS_WIDGET                     \
+        "dense_list_rows_row"
+#define NAUTILUS_PREFERENCES_DIALOG_LIST_COLUMN_SEPARATORS_WIDGET              \
+        "list_column_separators_row"
+#define NAUTILUS_PREFERENCES_DIALOG_LIST_ROW_SEPARATORS_WIDGET                 \
+        "list_row_separators_row"
+#define NAUTILUS_PREFERENCES_DIALOG_GRID_LABEL_LINES_WIDGET                    \
+        "grid_label_lines_row"
+#define NAUTILUS_PREFERENCES_DIALOG_SIDEBAR_COMPACT_WIDGET                     \
+        "sidebar_compact_row"
+#define NAUTILUS_PREFERENCES_DIALOG_SIDEBAR_SMALL_ICONS_WIDGET                 \
+        "sidebar_small_icons_row"
+#define NAUTILUS_PREFERENCES_DIALOG_ROUNDED_THUMBNAILS_WIDGET                   \
+        "rounded_thumbnails_row"
+#define NAUTILUS_PREFERENCES_DIALOG_THUMBNAIL_SHADOW_WIDGET                    \
+        "thumbnail_shadow_row"
+#define NAUTILUS_PREFERENCES_DIALOG_ANIMATIONS_WIDGET                          \
+        "animations_row"
+#define NAUTILUS_PREFERENCES_DIALOG_SHOW_HIDDEN_FILES_WIDGET                   \
+        "show_hidden_files_row"
 
 /* toggle group preferences */
 #define NAUTILUS_PREFERENCES_DIALOG_OPEN_ACTION_TOGGLE_GROUP                   \
@@ -89,6 +115,18 @@
 static const char * const speed_tradeoff_values[] =
 {
     "local-only", "always", "never",
+    NULL
+};
+
+static const char * const sidebar_position_values[] =
+{
+    "start", "end",
+    NULL
+};
+
+static const char * const preview_panel_position_values[] =
+{
+    "start", "end",
     NULL
 };
 
@@ -284,6 +322,33 @@ setup_folder_preview_items (GtkBuilder *builder)
 }
 
 static void
+int_row_changed (AdwSpinRow *row,
+                 GParamSpec *pspec,
+                 gpointer    user_data)
+{
+    const char *key = g_object_get_data (G_OBJECT (row), "prefs-key");
+
+    if (key != NULL)
+    {
+        g_settings_set_int (nautilus_preferences, key,
+                            (gint) adw_spin_row_get_value (row));
+    }
+}
+
+static void
+setup_int_row (GtkBuilder *builder,
+               const char *widget_name,
+               const char *prefs,
+               gint        fallback)
+{
+    AdwSpinRow *row = ADW_SPIN_ROW (gtk_builder_get_object (builder, widget_name));
+
+    adw_spin_row_set_value (row, (double) nautilus_preferences_get_int (prefs, fallback));
+    g_object_set_data_full (G_OBJECT (row), "prefs-key", g_strdup (prefs), g_free);
+    g_signal_connect (row, "notify::value", G_CALLBACK (int_row_changed), NULL);
+}
+
+static void
 setup_thumbnail_limit (GtkBuilder *builder)
 {
     AdwSpinRow *row = ADW_SPIN_ROW (gtk_builder_get_object (builder,
@@ -308,6 +373,10 @@ nautilus_preferences_dialog_setup (GtkBuilder *builder)
                  (const char *[]) { _("Follow GNOME Accent"), _("Blue"), _("Teal"),
                                     _("Green"), _("Yellow"), _("Orange"), _("Red"),
                                     _("Pink"), _("Purple"), _("Slate"), NULL });
+    setup_combo (builder, NAUTILUS_PREFERENCES_DIALOG_SIDEBAR_POSITION_WIDGET,
+                 (const char *[]) { _("Left"), _("Right"), NULL });
+    setup_combo (builder, NAUTILUS_PREFERENCES_DIALOG_PREVIEW_PANEL_POSITION_WIDGET,
+                 (const char *[]) { _("Left"), _("Right"), NULL });
 
     /* setup preferences */
     bind_builder_bool (builder, gtk_filechooser_preferences,
@@ -362,6 +431,33 @@ nautilus_preferences_dialog_setup (GtkBuilder *builder)
                          NAUTILUS_PREFERENCES_DIALOG_TERMINAL_COMMAND_WIDGET,
                          NAUTILUS_PREFERENCES_TERMINAL_COMMAND);
     bind_builder_bool (builder, nautilus_preferences,
+                       NAUTILUS_PREFERENCES_DIALOG_DENSE_LIST_ROWS_WIDGET,
+                       NAUTILUS_PREFERENCES_UI_DENSE_LIST_ROWS);
+    bind_builder_bool (builder, nautilus_preferences,
+                       NAUTILUS_PREFERENCES_DIALOG_LIST_COLUMN_SEPARATORS_WIDGET,
+                       NAUTILUS_PREFERENCES_UI_LIST_COLUMN_SEPARATORS);
+    bind_builder_bool (builder, nautilus_preferences,
+                       NAUTILUS_PREFERENCES_DIALOG_LIST_ROW_SEPARATORS_WIDGET,
+                       NAUTILUS_PREFERENCES_UI_LIST_ROW_SEPARATORS);
+    bind_builder_bool (builder, nautilus_preferences,
+                       NAUTILUS_PREFERENCES_DIALOG_SIDEBAR_COMPACT_WIDGET,
+                       NAUTILUS_PREFERENCES_UI_SIDEBAR_COMPACT);
+    bind_builder_bool (builder, nautilus_preferences,
+                       NAUTILUS_PREFERENCES_DIALOG_SIDEBAR_SMALL_ICONS_WIDGET,
+                       NAUTILUS_PREFERENCES_UI_SIDEBAR_SMALL_ICONS);
+    bind_builder_bool (builder, nautilus_preferences,
+                       NAUTILUS_PREFERENCES_DIALOG_ROUNDED_THUMBNAILS_WIDGET,
+                       NAUTILUS_PREFERENCES_UI_ROUNDED_THUMBNAILS);
+    bind_builder_bool (builder, nautilus_preferences,
+                       NAUTILUS_PREFERENCES_DIALOG_THUMBNAIL_SHADOW_WIDGET,
+                       NAUTILUS_PREFERENCES_UI_THUMBNAIL_SHADOW);
+    bind_builder_bool (builder, nautilus_preferences,
+                       NAUTILUS_PREFERENCES_DIALOG_ANIMATIONS_WIDGET,
+                       NAUTILUS_PREFERENCES_UI_ANIMATIONS);
+    bind_builder_bool (builder, gtk_filechooser_preferences,
+                       NAUTILUS_PREFERENCES_DIALOG_SHOW_HIDDEN_FILES_WIDGET,
+                       NAUTILUS_PREFERENCES_SHOW_HIDDEN_FILES);
+    bind_builder_bool (builder, nautilus_preferences,
                        NAUTILUS_PREFERENCES_DIALOG_FOLDER_PREVIEW_ICONS_WIDGET,
                        NAUTILUS_PREFERENCES_FOLDER_PREVIEW_ICONS);
     bind_builder_bool (builder, nautilus_preferences,
@@ -382,6 +478,14 @@ nautilus_preferences_dialog_setup (GtkBuilder *builder)
 
     setup_folder_preview_items (builder);
     setup_thumbnail_limit (builder);
+    setup_int_row (builder,
+                   NAUTILUS_PREFERENCES_DIALOG_PREVIEW_PANEL_WIDTH_WIDGET,
+                   NAUTILUS_PREFERENCES_UI_PREVIEW_PANEL_WIDTH,
+                   360);
+    setup_int_row (builder,
+                   NAUTILUS_PREFERENCES_DIALOG_GRID_LABEL_LINES_WIDGET,
+                   NAUTILUS_PREFERENCES_UI_GRID_LABEL_LINES,
+                   3);
     g_signal_connect (gtk_builder_get_object (builder,
                                               NAUTILUS_PREFERENCES_DIALOG_CLEAR_THUMBNAIL_CACHE_WIDGET),
                       "clicked", G_CALLBACK (clear_thumbnail_cache), NULL);
@@ -407,6 +511,14 @@ nautilus_preferences_dialog_setup (GtkBuilder *builder)
                             NAUTILUS_PREFERENCES_DIALOG_USAGE_ACCENT_ROW,
                             NAUTILUS_PREFERENCES_SIDEBAR_USAGE_ACCENT,
                             (const char **) usage_accent_values);
+    bind_builder_combo_row (builder, nautilus_preferences,
+                            NAUTILUS_PREFERENCES_DIALOG_SIDEBAR_POSITION_WIDGET,
+                            NAUTILUS_PREFERENCES_UI_SIDEBAR_POSITION,
+                            (const char **) sidebar_position_values);
+    bind_builder_combo_row (builder, nautilus_preferences,
+                            NAUTILUS_PREFERENCES_DIALOG_PREVIEW_PANEL_POSITION_WIDGET,
+                            NAUTILUS_PREFERENCES_UI_PREVIEW_PANEL_POSITION,
+                            (const char **) preview_panel_position_values);
 }
 
 void

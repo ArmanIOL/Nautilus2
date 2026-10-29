@@ -5078,6 +5078,84 @@ build_menu_for_extension_menu_items (NautilusFilesView *view,
     return G_MENU_MODEL (gmenu);
 }
 
+static gboolean
+is_blackbox_menu_item (GMenuModel *model,
+                       gint        index)
+{
+    g_autofree gchar *label = NULL;
+    g_autofree gchar *action = NULL;
+    g_autofree gchar *lower_label = NULL;
+    g_autofree gchar *lower_action = NULL;
+
+    if (g_menu_model_get_item_attribute (model, index, "label", "s", &label))
+    {
+        lower_label = g_ascii_strdown (label, -1);
+
+        if (strstr (lower_label, "blackbox") != NULL ||
+            strstr (lower_label, "black box") != NULL)
+        {
+            return TRUE;
+        }
+    }
+
+    if (g_menu_model_get_item_attribute (model, index, "action", "s", &action))
+    {
+        lower_action = g_ascii_strdown (action, -1);
+
+        if (strstr (lower_action, "blackbox") != NULL ||
+            strstr (lower_action, "black-box") != NULL)
+        {
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+/* Some terminal applications (notably Black Box) expose “Open in …” through a
+ * Nautilus extension. Promote that item into the main part of the context
+ * menu instead of leaving it buried in “More Actions”. */
+static void
+move_blackbox_menu_items (GMenuModel *source,
+                          GMenu      *target)
+{
+    gint n_items;
+
+    if (source == NULL || target == NULL)
+    {
+        return;
+    }
+
+    n_items = g_menu_model_get_n_items (source);
+
+    for (gint i = n_items - 1; i >= 0; i--)
+    {
+        g_autoptr (GMenuItem) item = NULL;
+        g_autofree gchar *label = NULL;
+
+        if (!is_blackbox_menu_item (source, i))
+        {
+            continue;
+        }
+
+        item = g_menu_item_new_from_model (source, i);
+
+        if (g_menu_model_get_item_attribute (source, i, "label", "s", &label))
+        {
+            g_autofree gchar *lower = g_ascii_strdown (label, -1);
+
+            if (g_str_equal (lower, "open in blackbox") ||
+                g_str_equal (lower, "open in black box"))
+            {
+                g_menu_item_set_attribute (item, "label", "s", _("Open in BlackBox"));
+            }
+        }
+
+        g_menu_prepend_item (target, item);
+        g_menu_remove (G_MENU (source), i);
+    }
+}
+
 static void
 update_extensions_menus (NautilusFilesView *view,
                          GtkBuilder        *builder)
@@ -7967,6 +8045,11 @@ nautilus_files_view_update_context_menus (NautilusFilesView *self)
     if (mode == NAUTILUS_MODE_BROWSE)
     {
         update_extensions_menus (self, builder);
+
+        move_blackbox_menu_items (G_MENU_MODEL (gtk_builder_get_object (builder, "selection-extensions-section")),
+                                  G_MENU (gtk_builder_get_object (builder, "blackbox-selection-section")));
+        move_blackbox_menu_items (G_MENU_MODEL (gtk_builder_get_object (builder, "background-extensions-section")),
+                                  G_MENU (gtk_builder_get_object (builder, "blackbox-background-section")));
     }
 
     nautilus_files_view_update_actions_state (self);

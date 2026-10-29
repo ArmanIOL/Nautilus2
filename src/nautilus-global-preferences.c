@@ -9,6 +9,8 @@
 #include <config.h>
 #include "nautilus-global-preferences.h"
 
+#include <gtk/gtk.h>
+
 #include "nautilus-file-utilities.h"
 
 GSettings *nautilus_preferences;
@@ -31,6 +33,20 @@ GSettings *localsearch_preferences;
 static gboolean mouse_extra_buttons = TRUE;
 static guint mouse_forward_button = 9;
 static guint mouse_back_button = 8;
+
+static void
+apply_interface_animations (void)
+{
+    GtkSettings *settings = gtk_settings_get_default ();
+
+    if (settings != NULL)
+    {
+        gboolean enabled = nautilus_preferences_get_boolean (NAUTILUS_PREFERENCES_UI_ANIMATIONS,
+                                                             TRUE);
+
+        g_object_set (settings, "gtk-enable-animations", enabled, NULL);
+    }
+}
 
 static void
 use_extra_mouse_buttons_changed (gpointer callback_data)
@@ -116,6 +132,12 @@ nautilus_global_preferences_init (void)
                               "changed::" NAUTILUS_PREFERENCES_MOUSE_USE_EXTRA_BUTTONS,
                               G_CALLBACK (use_extra_mouse_buttons_changed),
                               NULL);
+
+    g_signal_connect_swapped (nautilus_preferences,
+                              "changed::" NAUTILUS_PREFERENCES_UI_ANIMATIONS,
+                              G_CALLBACK (apply_interface_animations),
+                              NULL);
+    apply_interface_animations ();
 }
 
 gboolean

@@ -43,6 +43,7 @@
         <attribute name="hidden-when">action-disabled</attribute>
       </item>
     </section>
+    <section id="blackbox-background-section"/>
     <section>
       <item>
         <attribute name="label" translatable="yes">P_roperties</attribute>
@@ -171,6 +172,7 @@
         <attribute name="hidden-when">action-disabled</attribute>
       </item>
     </section>
+    <section id="blackbox-selection-section"/>
     <section>
       <item>
         <attribute name="label" translatable="yes">P_roperties</attribute>

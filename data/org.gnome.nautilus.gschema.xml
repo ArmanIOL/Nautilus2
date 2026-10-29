@@ -176,6 +176,68 @@
       <summary>Show the access date in file tooltips</summary>
       <description>If set to true, file tooltips include the date the file was last accessed.</description>
     </key>
+    <key type="s" name="ui-sidebar-position">
+      <default>'end'</default>
+      <summary>Sidebar position</summary>
+      <description>Whether the places sidebar is displayed at the start or at the end of the window. Valid values are “start” and “end”.</description>
+    </key>
+    <key type="s" name="ui-preview-panel-position">
+      <default>'end'</default>
+      <summary>Preview panel position</summary>
+      <description>Whether the preview panel is displayed at the start or at the end of the window. Valid values are “start” and “end”.</description>
+    </key>
+    <key type="i" name="ui-preview-panel-width">
+      <range min="240" max="600"/>
+      <default>360</default>
+      <summary>Preview panel width</summary>
+      <description>Width of the preview panel in pixels.</description>
+    </key>
+    <key type="b" name="ui-dense-list-rows">
+      <default>false</default>
+      <summary>Use dense rows in the list view</summary>
+      <description>If set to true, rows in the list view use less vertical space.</description>
+    </key>
+    <key type="b" name="ui-list-column-separators">
+      <default>false</default>
+      <summary>Show column separators in the list view</summary>
+      <description>If set to true, the list view draws separators between columns.</description>
+    </key>
+    <key type="b" name="ui-list-row-separators">
+      <default>false</default>
+      <summary>Show row separators in the list view</summary>
+      <description>If set to true, the list view draws separators between rows.</description>
+    </key>
+    <key type="i" name="ui-grid-label-lines">
+      <range min="1" max="3"/>
+      <default>3</default>
+      <summary>Number of lines for icon captions</summary>
+      <description>Maximum number of lines used to display file names in the grid view.</description>
+    </key>
+    <key type="b" name="ui-sidebar-compact">
+      <default>false</default>
+      <summary>Use compact sidebar rows</summary>
+      <description>If set to true, rows in the places sidebar use less vertical space.</description>
+    </key>
+    <key type="b" name="ui-sidebar-small-icons">
+      <default>false</default>
+      <summary>Use small icons in the sidebar</summary>
+      <description>If set to true, the places sidebar uses smaller icons.</description>
+    </key>
+    <key type="b" name="ui-rounded-thumbnails">
+      <default>false</default>
+      <summary>Round thumbnail corners</summary>
+      <description>If set to true, thumbnails are drawn with rounded corners.</description>
+    </key>
+    <key type="b" name="ui-thumbnail-shadow">
+      <default>true</default>
+      <summary>Show thumbnail shadows</summary>
+      <description>If set to true, thumbnails are drawn with a subtle shadow and outline.</description>
+    </key>
+    <key type="b" name="ui-animations">
+      <default>true</default>
+      <summary>Enable interface animations</summary>
+      <description>If set to true, the interface uses animated transitions.</description>
+    </key>
     <key type="s" name="terminal-command">
       <default>''</default>
       <summary>Terminal command used by the context menu</summary>

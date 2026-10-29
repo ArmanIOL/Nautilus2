@@ -29,6 +29,7 @@ struct _NautilusGridCell
     GtkWidget *icon;
     GtkWidget *emblems_box;
     GtkWidget *labels_box;
+    GtkWidget *label;
     GtkWidget *caption_labels[NAUTILUS_GRID_CELL_N_CAPTIONS];
 
     gboolean in_file_change;
@@ -486,6 +487,7 @@ nautilus_grid_cell_class_init (NautilusGridCellClass *klass)
     gtk_widget_class_bind_template_child (widget_class, NautilusGridCell, icon);
     gtk_widget_class_bind_template_child (widget_class, NautilusGridCell, emblems_box);
     gtk_widget_class_bind_template_child (widget_class, NautilusGridCell, labels_box);
+    gtk_widget_class_bind_template_child (widget_class, NautilusGridCell, label);
 
     gtk_widget_class_bind_template_callback (widget_class, on_label_query_tooltip);
 
@@ -504,9 +506,30 @@ on_query_tooltip (GtkWidget  *widget,
 }
 
 static void
+apply_label_lines (NautilusGridCell *self)
+{
+    gint lines;
+
+    if (self->label == NULL)
+    {
+        return;
+    }
+
+    lines = CLAMP (nautilus_preferences_get_int (NAUTILUS_PREFERENCES_UI_GRID_LABEL_LINES,
+                                                 3), 1, 3);
+
+    gtk_label_set_lines (GTK_LABEL (self->label), lines);
+}
+
+static void
 nautilus_grid_cell_init (NautilusGridCell *self)
 {
     gtk_widget_init_template (GTK_WIDGET (self));
+
+    apply_label_lines (self);
+    g_signal_connect_swapped (nautilus_preferences,
+                              "changed::" NAUTILUS_PREFERENCES_UI_GRID_LABEL_LINES,
+                              G_CALLBACK (apply_label_lines), self);
 
     g_signal_connect (self, "notify::icon-size",
                       G_CALLBACK (on_icon_size_changed), NULL);

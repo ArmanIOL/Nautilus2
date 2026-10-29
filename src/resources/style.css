@@ -305,6 +305,38 @@ placesview list {
   filter: none;
 }
 
+.rounded-thumbnails .nautilus-image.file-thumbnail {
+  border-radius: 8px;
+}
+
+.no-thumbnail-shadow .nautilus-image.file-thumbnail {
+  box-shadow: none;
+  filter: none;
+}
+
+/* Interface preferences */
+.nautilus-list-view.dense-rows columnview > listview {
+  border-spacing: 4px;
+}
+
+.nautilus-list-view.dense-rows .nautilus-view-cell {
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+
+placessidebar.compact-rows row {
+  min-height: 30px;
+}
+
+placessidebar.compact-rows .sidebar-revealer {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+placessidebar.small-icons image {
+  -gtk-icon-size: 12px;
+}
+
 .nautilus-network-view {
   -gtk-icon-style: symbolic;
 }

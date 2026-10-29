@@ -1279,6 +1279,72 @@ is_layout_reversed (void)
 }
 
 static void
+toggle_css_class (GtkWidget  *widget,
+                  const char *css_class,
+                  gboolean    enabled)
+{
+    if (enabled)
+    {
+        gtk_widget_add_css_class (widget, css_class);
+    }
+    else
+    {
+        gtk_widget_remove_css_class (widget, css_class);
+    }
+}
+
+static void
+apply_interface_preferences (NautilusWindow *window)
+{
+    g_autofree char *sidebar_position = NULL;
+    g_autofree char *preview_position = NULL;
+    gint preview_width;
+    gboolean compact_sidebar;
+    gboolean small_sidebar_icons;
+
+    sidebar_position = nautilus_preferences_get_string (NAUTILUS_PREFERENCES_UI_SIDEBAR_POSITION,
+                                                        "end");
+    preview_position = nautilus_preferences_get_string (NAUTILUS_PREFERENCES_UI_PREVIEW_PANEL_POSITION,
+                                                        "end");
+    preview_width = nautilus_preferences_get_int (NAUTILUS_PREFERENCES_UI_PREVIEW_PANEL_WIDTH,
+                                                  360);
+
+    adw_overlay_split_view_set_sidebar_position (ADW_OVERLAY_SPLIT_VIEW (window->split_view),
+                                                 g_strcmp0 (sidebar_position, "start") == 0
+                                                 ? GTK_PACK_START : GTK_PACK_END);
+    adw_overlay_split_view_set_sidebar_position (ADW_OVERLAY_SPLIT_VIEW (window->preview_split_view),
+                                                 g_strcmp0 (preview_position, "start") == 0
+                                                 ? GTK_PACK_START : GTK_PACK_END);
+
+    adw_overlay_split_view_set_sidebar_width_unit (ADW_OVERLAY_SPLIT_VIEW (window->preview_split_view),
+                                                   ADW_LENGTH_UNIT_PX);
+    adw_overlay_split_view_set_min_sidebar_width (ADW_OVERLAY_SPLIT_VIEW (window->preview_split_view),
+                                                  preview_width);
+    adw_overlay_split_view_set_max_sidebar_width (ADW_OVERLAY_SPLIT_VIEW (window->preview_split_view),
+                                                  preview_width);
+
+    toggle_css_class (GTK_WIDGET (window),
+                      "rounded-thumbnails",
+                      nautilus_preferences_get_boolean (NAUTILUS_PREFERENCES_UI_ROUNDED_THUMBNAILS,
+                                                        FALSE));
+    toggle_css_class (GTK_WIDGET (window),
+                      "no-thumbnail-shadow",
+                      !nautilus_preferences_get_boolean (NAUTILUS_PREFERENCES_UI_THUMBNAIL_SHADOW,
+                                                         TRUE));
+
+    compact_sidebar = nautilus_preferences_get_boolean (NAUTILUS_PREFERENCES_UI_SIDEBAR_COMPACT,
+                                                        FALSE);
+    small_sidebar_icons = nautilus_preferences_get_boolean (NAUTILUS_PREFERENCES_UI_SIDEBAR_SMALL_ICONS,
+                                                            FALSE);
+
+    if (window->places_sidebar != NULL)
+    {
+        toggle_css_class (GTK_WIDGET (window->places_sidebar), "compact-rows", compact_sidebar);
+        toggle_css_class (GTK_WIDGET (window->places_sidebar), "small-icons", small_sidebar_icons);
+    }
+}
+
+static void
 notify_decoration_layout_cb (NautilusWindow *self)
 {
     gboolean inverted = is_layout_reversed ();
@@ -1336,6 +1402,29 @@ nautilus_window_constructed (GObject *self)
                              "changed::" NAUTILUS_PREFERENCES_SHOW_PREVIEW_PANEL,
                              G_CALLBACK (on_preview_panel_pref_changed), window,
                              G_CONNECT_SWAPPED);
+
+    apply_interface_preferences (window);
+    g_signal_connect_swapped (nautilus_preferences,
+                              "changed::" NAUTILUS_PREFERENCES_UI_SIDEBAR_POSITION,
+                              G_CALLBACK (apply_interface_preferences), window);
+    g_signal_connect_swapped (nautilus_preferences,
+                              "changed::" NAUTILUS_PREFERENCES_UI_PREVIEW_PANEL_POSITION,
+                              G_CALLBACK (apply_interface_preferences), window);
+    g_signal_connect_swapped (nautilus_preferences,
+                              "changed::" NAUTILUS_PREFERENCES_UI_PREVIEW_PANEL_WIDTH,
+                              G_CALLBACK (apply_interface_preferences), window);
+    g_signal_connect_swapped (nautilus_preferences,
+                              "changed::" NAUTILUS_PREFERENCES_UI_ROUNDED_THUMBNAILS,
+                              G_CALLBACK (apply_interface_preferences), window);
+    g_signal_connect_swapped (nautilus_preferences,
+                              "changed::" NAUTILUS_PREFERENCES_UI_THUMBNAIL_SHADOW,
+                              G_CALLBACK (apply_interface_preferences), window);
+    g_signal_connect_swapped (nautilus_preferences,
+                              "changed::" NAUTILUS_PREFERENCES_UI_SIDEBAR_COMPACT,
+                              G_CALLBACK (apply_interface_preferences), window);
+    g_signal_connect_swapped (nautilus_preferences,
+                              "changed::" NAUTILUS_PREFERENCES_UI_SIDEBAR_SMALL_ICONS,
+                              G_CALLBACK (apply_interface_preferences), window);
 
 
     g_signal_connect_object (nautilus_file_undo_manager_get (), "undo-changed",
