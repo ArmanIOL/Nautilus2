@@ -7167,6 +7167,14 @@ msgstr "Открыть папку «Видео»"
 msgid "Drag to resize the sidebar"
 msgstr "Перетащите, чтобы изменить ширину панели"
 
+#: src/nautilus-sidebar.c
+msgid "Volume %d — %s"
+msgstr "Том %d — %s"
+
+#: src/nautilus-sidebar.c
+msgid "Volume %d"
+msgstr "Том %d"
+
 #~ msgid "Wallpapers"
 #~ msgstr "Обои"
 

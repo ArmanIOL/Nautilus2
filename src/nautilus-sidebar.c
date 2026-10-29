@@ -18,6 +18,7 @@
 #include "nautilus-enum-types.h"
 
 #include <gio/gio.h>
+#include <string.h>
 #ifdef HAVE_CLOUDPROVIDERS
 #include <cloudproviders.h>
 #endif
@@ -622,6 +623,135 @@ bookmark_is_duplicate (GFile *location)
     return duplicate;
 }
 
+static guint64
+get_row_volume_size (NautilusSidebarRow *row)
+{
+    g_autoptr (GVolume) volume = NULL;
+    g_autoptr (GMount) mount = NULL;
+    g_autoptr (GFile) root = NULL;
+    g_autofree char *uri = NULL;
+    guint64 size = 0;
+
+    g_object_get (row, "volume", &volume, "mount", &mount, "uri", &uri, NULL);
+
+    if (uri != NULL)
+    {
+        root = g_file_new_for_uri (uri);
+    }
+    else if (mount != NULL)
+    {
+        root = g_mount_get_default_location (mount);
+    }
+
+    if (root != NULL)
+    {
+        g_autoptr (GFileInfo) info = g_file_query_filesystem_info (root,
+                                                                   G_FILE_ATTRIBUTE_FILESYSTEM_SIZE,
+                                                                   NULL, NULL);
+        if (info != NULL)
+        {
+            size = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_FILESYSTEM_SIZE);
+        }
+    }
+
+    /* Unmounted volumes cannot be queried through GIO, but the kernel exposes
+     * the size of the block device in sysfs. */
+    if (size == 0 && volume != NULL)
+    {
+        g_autofree char *device = g_volume_get_identifier (volume, G_VOLUME_IDENTIFIER_KIND_UNIX_DEVICE);
+
+        if (device != NULL)
+        {
+            const char *name = strrchr (device, '/');
+            g_autofree char *path = NULL;
+            g_autofree char *contents = NULL;
+
+            name = name != NULL ? name + 1 : device;
+            path = g_strdup_printf ("/sys/class/block/%s/size", name);
+
+            if (g_file_get_contents (path, &contents, NULL, NULL))
+            {
+                size = g_ascii_strtoull (contents, NULL, 10) * 512;
+            }
+        }
+    }
+
+    return size;
+}
+
+static void
+update_volume_labels (NautilusSidebar *sidebar)
+{
+    int volume_number = 1;
+
+    for (GtkWidget *child = gtk_widget_get_first_child (GTK_WIDGET (sidebar->list_box));
+         child != NULL;
+         child = gtk_widget_get_next_sibling (child))
+    {
+        NautilusSidebarSectionType section_type;
+        NautilusSidebarRowType place_type;
+        NautilusSidebarRow *row;
+        g_autofree char *label = NULL;
+        g_autofree char *size_text = NULL;
+        g_autofree char *new_label = NULL;
+        guint64 size;
+
+        if (!NAUTILUS_IS_SIDEBAR_ROW (child))
+        {
+            continue;
+        }
+
+        row = NAUTILUS_SIDEBAR_ROW (child);
+        g_object_get (row,
+                      "section-type", &section_type,
+                      "place-type", &place_type,
+                      "label", &label,
+                      NULL);
+
+        if (section_type != NAUTILUS_SIDEBAR_SECTION_MOUNTS)
+        {
+            continue;
+        }
+
+        size = get_row_volume_size (row);
+        if (size > 0)
+        {
+            size_text = g_format_size (size);
+        }
+
+        if (place_type == NAUTILUS_SIDEBAR_ROW_BOOKMARK)
+        {
+            /* The root filesystem keeps its bookmark name. */
+            if (size_text != NULL)
+            {
+                new_label = g_strdup_printf ("%s · %s", label, size_text);
+            }
+            else
+            {
+                continue;
+            }
+        }
+        else if (size_text != NULL)
+        {
+            new_label = g_strdup_printf (_("Volume %d — %s"), volume_number, size_text);
+        }
+        else
+        {
+            new_label = g_strdup_printf (_("Volume %d"), volume_number);
+        }
+
+        if (new_label != NULL)
+        {
+            g_object_set (row, "label", new_label, NULL);
+        }
+
+        if (place_type != NAUTILUS_SIDEBAR_ROW_BOOKMARK)
+        {
+            volume_number++;
+        }
+    }
+}
+
 typedef struct
 {
     NautilusSidebar *sidebar;
@@ -1112,7 +1242,9 @@ update_places (NautilusSidebar *sidebar)
         tooltip = is_native ? g_file_get_path (location) : g_uri_unescape_string (mount_uri, NULL);
 
         row = add_place (sidebar, NAUTILUS_SIDEBAR_ROW_BOOKMARK,
-                         NAUTILUS_SIDEBAR_SECTION_BOOKMARKS,
+                         g_strcmp0 (mount_uri, "file:///") == 0
+                         ? NAUTILUS_SIDEBAR_SECTION_MOUNTS
+                         : NAUTILUS_SIDEBAR_SECTION_BOOKMARKS,
                          nautilus_bookmark_get_name (l->data),
                          NULL,
                          NULL, mount_uri, NULL, NULL, NULL, NULL, index, tooltip);
@@ -1196,6 +1328,20 @@ update_places (NautilusSidebar *sidebar)
 
     /* We want this hidden by default, but need to do it after the show_all call */
     nautilus_sidebar_row_hide (NAUTILUS_SIDEBAR_ROW (sidebar->new_bookmark_row), TRUE);
+
+    /* Number the rows and append their capacities. Must run after all rows are
+     * inserted, so that the order matches what is displayed. */
+    update_volume_labels (sidebar);
+
+    for (GtkWidget *c = gtk_widget_get_first_child (GTK_WIDGET (sidebar->list_box)); c; c = gtk_widget_get_next_sibling (c))
+    {
+        if (NAUTILUS_IS_SIDEBAR_ROW (c))
+        {
+            g_autofree char *lbl = NULL;
+            g_object_get (c, "label", &lbl, NULL);
+            g_printerr ("SIDEBAR-FINAL: %s\n", lbl);
+        }
+    }
 
     /* restore original selection */
     if (original_uri)
