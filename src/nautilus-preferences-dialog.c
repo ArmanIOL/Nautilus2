@@ -26,6 +26,18 @@
         "show_create_link_row"
 #define NAUTILUS_PREFERENCES_DIALOG_LIST_VIEW_USE_TREE_WIDGET                  \
         "use_tree_view_row"
+#define NAUTILUS_PREFERENCES_DIALOG_SHOW_SIDEBAR_TRASH_WIDGET                  \
+        "show_sidebar_trash_row"
+#define NAUTILUS_PREFERENCES_DIALOG_SHOW_SIDEBAR_NETWORK_WIDGET                \
+        "show_sidebar_network_row"
+#define NAUTILUS_PREFERENCES_DIALOG_SHOW_SIDEBAR_VOLUMES_WIDGET                \
+        "show_sidebar_volumes_row"
+#define NAUTILUS_PREFERENCES_DIALOG_SHOW_UNMOUNTED_VOLUMES_WIDGET              \
+        "show_unmounted_volumes_row"
+#define NAUTILUS_PREFERENCES_DIALOG_SHOW_VOLUME_SIZES_WIDGET                   \
+        "show_volume_sizes_row"
+#define NAUTILUS_PREFERENCES_DIALOG_SHOW_VOLUME_USAGE_WIDGET                   \
+        "show_volume_usage_row"
 
 /* toggle group preferences */
 #define NAUTILUS_PREFERENCES_DIALOG_OPEN_ACTION_TOGGLE_GROUP                   \
@@ -38,10 +50,19 @@
         "thumbnails_row"
 #define NAUTILUS_PREFERENCES_DIALOG_COUNT_ROW                       \
         "count_row"
+#define NAUTILUS_PREFERENCES_DIALOG_USAGE_ACCENT_ROW                           \
+        "usage_accent_row"
 
 static const char * const speed_tradeoff_values[] =
 {
     "local-only", "always", "never",
+    NULL
+};
+
+static const char * const usage_accent_values[] =
+{
+    "system", "blue", "teal", "green", "yellow",
+    "orange", "red", "pink", "purple", "slate",
     NULL
 };
 
@@ -165,6 +186,10 @@ nautilus_preferences_dialog_setup (GtkBuilder *builder)
                  (const char *[]) { _("On This Device Only"), _("All Files"), _("Never"), NULL });
     setup_combo (builder, NAUTILUS_PREFERENCES_DIALOG_COUNT_ROW,
                  (const char *[]) { _("On This Device Only"), _("All Folders"), _("Never"), NULL });
+    setup_combo (builder, NAUTILUS_PREFERENCES_DIALOG_USAGE_ACCENT_ROW,
+                 (const char *[]) { _("Follow GNOME Accent"), _("Blue"), _("Teal"),
+                                    _("Green"), _("Yellow"), _("Orange"), _("Red"),
+                                    _("Pink"), _("Purple"), _("Slate"), NULL });
 
     /* setup preferences */
     bind_builder_bool (builder, gtk_filechooser_preferences,
@@ -179,6 +204,24 @@ nautilus_preferences_dialog_setup (GtkBuilder *builder)
     bind_builder_bool (builder, nautilus_preferences,
                        NAUTILUS_PREFERENCES_DIALOG_DELETE_PERMANENTLY_WIDGET,
                        NAUTILUS_PREFERENCES_SHOW_DELETE_PERMANENTLY);
+    bind_builder_bool (builder, nautilus_preferences,
+                       NAUTILUS_PREFERENCES_DIALOG_SHOW_SIDEBAR_TRASH_WIDGET,
+                       NAUTILUS_PREFERENCES_SHOW_SIDEBAR_TRASH);
+    bind_builder_bool (builder, nautilus_preferences,
+                       NAUTILUS_PREFERENCES_DIALOG_SHOW_SIDEBAR_NETWORK_WIDGET,
+                       NAUTILUS_PREFERENCES_SHOW_SIDEBAR_NETWORK);
+    bind_builder_bool (builder, nautilus_preferences,
+                       NAUTILUS_PREFERENCES_DIALOG_SHOW_SIDEBAR_VOLUMES_WIDGET,
+                       NAUTILUS_PREFERENCES_SHOW_SIDEBAR_VOLUMES);
+    bind_builder_bool (builder, nautilus_preferences,
+                       NAUTILUS_PREFERENCES_DIALOG_SHOW_UNMOUNTED_VOLUMES_WIDGET,
+                       NAUTILUS_PREFERENCES_SHOW_UNMOUNTED_VOLUMES);
+    bind_builder_bool (builder, nautilus_preferences,
+                       NAUTILUS_PREFERENCES_DIALOG_SHOW_VOLUME_SIZES_WIDGET,
+                       NAUTILUS_PREFERENCES_SHOW_VOLUME_SIZES);
+    bind_builder_bool (builder, nautilus_preferences,
+                       NAUTILUS_PREFERENCES_DIALOG_SHOW_VOLUME_USAGE_WIDGET,
+                       NAUTILUS_PREFERENCES_SHOW_VOLUME_USAGE);
 
     setup_detailed_date (builder);
 
@@ -197,6 +240,10 @@ nautilus_preferences_dialog_setup (GtkBuilder *builder)
                             NAUTILUS_PREFERENCES_DIALOG_COUNT_ROW,
                             NAUTILUS_PREFERENCES_SHOW_DIRECTORY_ITEM_COUNTS,
                             (const char **) speed_tradeoff_values);
+    bind_builder_combo_row (builder, nautilus_preferences,
+                            NAUTILUS_PREFERENCES_DIALOG_USAGE_ACCENT_ROW,
+                            NAUTILUS_PREFERENCES_SIDEBAR_USAGE_ACCENT,
+                            (const char **) usage_accent_values);
 }
 
 void

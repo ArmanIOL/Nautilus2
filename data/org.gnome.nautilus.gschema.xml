@@ -178,6 +178,41 @@
       <summary>How to display file timestamps in the views</summary>
       <description>If set to 'simple', Files will show Today and Yesterday with time, otherwise the exact date without time. If set to 'detailed', it will always show the exact date and time.</description>
     </key>
+    <key type="b" name="show-sidebar-trash">
+      <default>true</default>
+      <summary>Whether to show the Trash in the sidebar</summary>
+      <description>If set to true, the sidebar will show a shortcut to the Trash.</description>
+    </key>
+    <key type="b" name="show-sidebar-network">
+      <default>true</default>
+      <summary>Whether to show the Network section in the sidebar</summary>
+      <description>If set to true, the sidebar will show network locations.</description>
+    </key>
+    <key type="b" name="show-sidebar-volumes">
+      <default>true</default>
+      <summary>Whether to show the Volumes section in the sidebar</summary>
+      <description>If set to true, the sidebar will show local volumes and mounted filesystems.</description>
+    </key>
+    <key type="b" name="show-unmounted-volumes">
+      <default>true</default>
+      <summary>Whether to show unmounted volumes in the sidebar</summary>
+      <description>If set to true, volumes which are not mounted will still be listed so that they can be mounted from the sidebar.</description>
+    </key>
+    <key type="b" name="show-volume-sizes">
+      <default>true</default>
+      <summary>Whether to show the capacity of volumes in the sidebar</summary>
+      <description>If set to true, volume labels include their total capacity.</description>
+    </key>
+    <key type="b" name="show-volume-usage">
+      <default>true</default>
+      <summary>Whether to show the used space of volumes in the sidebar</summary>
+      <description>If set to true, a thin bar below each volume shows the used and free space.</description>
+    </key>
+    <key type="s" name="sidebar-usage-accent">
+      <default>'system'</default>
+      <summary>Color of the volume usage indicator</summary>
+      <description>Color used for the used part of the volume usage indicator. The value “system” follows the GNOME accent color. Other values are “blue”, “teal”, “green”, “yellow”, “orange”, “red”, “pink”, “purple” and “slate”.</description>
+    </key>
   </schema>
 
   <schema path="/org/gnome/nautilus/compression/" id="org.gnome.nautilus.compression" gettext-domain="nautilus">

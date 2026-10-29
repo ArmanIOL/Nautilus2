@@ -111,6 +111,15 @@ typedef enum
 /* Date and time format in the view */
 #define NAUTILUS_PREFERENCES_DATE_TIME_FORMAT "date-time-format"
 
+/* Sidebar */
+#define NAUTILUS_PREFERENCES_SHOW_SIDEBAR_TRASH "show-sidebar-trash"
+#define NAUTILUS_PREFERENCES_SHOW_SIDEBAR_NETWORK "show-sidebar-network"
+#define NAUTILUS_PREFERENCES_SHOW_SIDEBAR_VOLUMES "show-sidebar-volumes"
+#define NAUTILUS_PREFERENCES_SHOW_UNMOUNTED_VOLUMES "show-unmounted-volumes"
+#define NAUTILUS_PREFERENCES_SHOW_VOLUME_SIZES "show-volume-sizes"
+#define NAUTILUS_PREFERENCES_SHOW_VOLUME_USAGE "show-volume-usage"
+#define NAUTILUS_PREFERENCES_SIDEBAR_USAGE_ACCENT "sidebar-usage-accent"
+
 typedef enum
 {
         NAUTILUS_DATE_TIME_FORMAT_SIMPLE = 0,

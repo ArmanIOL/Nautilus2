@@ -7183,6 +7183,86 @@ msgstr "Занято %s из %s"
 msgid "Disk usage is available after mounting"
 msgstr "Занятое место станет известно после монтирования"
 
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Sidebar Items"
+msgstr "Элементы боковой панели"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Choose which items are shown in the sidebar."
+msgstr "Выберите, какие элементы отображать на боковой панели."
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Show _Trash"
+msgstr "Показывать _корзину"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Show _Network Section"
+msgstr "Показывать раздел «_Сеть»"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Show _Volumes Section"
+msgstr "Показывать раздел «_Тома»"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Show _Unmounted Volumes"
+msgstr "Показывать _несмонтированные тома"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Control how local volumes are displayed in the sidebar."
+msgstr "Настройте отображение локальных томов на боковой панели."
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Show Volume _Sizes"
+msgstr "Показывать _размеры томов"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Show _Used Space"
+msgstr "Показывать _занятое место"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Usage _Color"
+msgstr "_Цвет индикатора"
+
+#: src/nautilus-preferences-dialog.c
+msgid "Follow GNOME Accent"
+msgstr "Как в GNOME (акцентный цвет)"
+
+#: src/nautilus-preferences-dialog.c
+msgid "Blue"
+msgstr "Синий"
+
+#: src/nautilus-preferences-dialog.c
+msgid "Teal"
+msgstr "Бирюзовый"
+
+#: src/nautilus-preferences-dialog.c
+msgid "Green"
+msgstr "Зелёный"
+
+#: src/nautilus-preferences-dialog.c
+msgid "Yellow"
+msgstr "Жёлтый"
+
+#: src/nautilus-preferences-dialog.c
+msgid "Orange"
+msgstr "Оранжевый"
+
+#: src/nautilus-preferences-dialog.c
+msgid "Red"
+msgstr "Красный"
+
+#: src/nautilus-preferences-dialog.c
+msgid "Pink"
+msgstr "Розовый"
+
+#: src/nautilus-preferences-dialog.c
+msgid "Purple"
+msgstr "Фиолетовый"
+
+#: src/nautilus-preferences-dialog.c
+msgid "Slate"
+msgstr "Серо-синий"
+
 #~ msgid "Wallpapers"
 #~ msgstr "Обои"
 

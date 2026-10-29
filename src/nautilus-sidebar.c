@@ -689,6 +689,10 @@ static void
 update_volume_labels (NautilusSidebar *sidebar)
 {
     int volume_number = 1;
+    gboolean show_sizes = g_settings_get_boolean (nautilus_preferences,
+                                                  NAUTILUS_PREFERENCES_SHOW_VOLUME_SIZES);
+    gboolean show_usage = g_settings_get_boolean (nautilus_preferences,
+                                                  NAUTILUS_PREFERENCES_SHOW_VOLUME_USAGE);
 
     for (GtkWidget *child = gtk_widget_get_first_child (GTK_WIDGET (sidebar->list_box));
          child != NULL;
@@ -731,7 +735,7 @@ update_volume_labels (NautilusSidebar *sidebar)
             size_text = g_format_size (size);
         }
 
-        if (size_text != NULL)
+        if (show_sizes && size_text != NULL)
         {
             new_label = g_strdup_printf (_("Volume %d — %s"), volume_number, size_text);
         }
@@ -742,7 +746,11 @@ update_volume_labels (NautilusSidebar *sidebar)
 
         g_object_set (row, "label", new_label, NULL);
 
-        if (size > 0 && free_space != G_MAXUINT64 && free_space <= size)
+        if (!show_usage)
+        {
+            nautilus_sidebar_row_set_usage (row, -1, NULL);
+        }
+        else if (size > 0 && free_space != G_MAXUINT64 && free_space <= size)
         {
             g_autofree char *free_text = g_format_size (free_space);
             g_autofree char *used_text = g_format_size (size - free_space);
@@ -964,6 +972,16 @@ add_block_device_places (NautilusSidebar *sidebar)
     g_autoptr (GPtrArray) volumes = NULL;
     GList *mounts;
     const char *name;
+    gboolean show_unmounted;
+
+    if (!g_settings_get_boolean (nautilus_preferences,
+                                 NAUTILUS_PREFERENCES_SHOW_SIDEBAR_VOLUMES))
+    {
+        return;
+    }
+
+    show_unmounted = g_settings_get_boolean (nautilus_preferences,
+                                             NAUTILUS_PREFERENCES_SHOW_UNMOUNTED_VOLUMES);
 
     dir = g_dir_open ("/sys/class/block", 0, NULL);
     if (dir == NULL)
@@ -1053,6 +1071,12 @@ add_block_device_places (NautilusSidebar *sidebar)
         volume->fstype = g_steal_pointer (&fstype);
         volume->size = size;
         volume->mounted = mountpoint != NULL;
+
+        if (!volume->mounted && !show_unmounted)
+        {
+            block_volume_free (volume);
+            continue;
+        }
 
         g_ptr_array_add (volumes, volume);
     }
@@ -1292,7 +1316,9 @@ update_places (NautilusSidebar *sidebar)
                            _("Open the Videos folder"));
 
     /* Trash */
-    if (sidebar->show_trash)
+    if (sidebar->show_trash &&
+        g_settings_get_boolean (nautilus_preferences,
+                                NAUTILUS_PREFERENCES_SHOW_SIDEBAR_TRASH))
     {
         start_icon = nautilus_trash_monitor_get_symbolic_icon ();
         sidebar->trash_row = add_place (sidebar, NAUTILUS_SIDEBAR_ROW_BUILT_IN,
@@ -1516,61 +1542,69 @@ update_places (NautilusSidebar *sidebar)
     g_object_unref (new_bookmark_icon);
 
     /* network */
-    start_icon = g_themed_icon_new_with_default_fallbacks (ICON_NAME_NETWORK_VIEW);
-    add_place (sidebar, NAUTILUS_SIDEBAR_ROW_BUILT_IN,
-               NAUTILUS_SIDEBAR_SECTION_NETWORK,
-               _("Network"), start_icon, NULL, SCHEME_NETWORK_VIEW ":///",
-               NULL, NULL, NULL, NULL, 0,
-               _("Open Network Locations"));
-    g_object_unref (start_icon);
-
-    network_volumes = g_list_reverse (network_volumes);
-    for (l = network_volumes; l != NULL; l = l->next)
+    if (g_settings_get_boolean (nautilus_preferences,
+                                NAUTILUS_PREFERENCES_SHOW_SIDEBAR_NETWORK))
     {
-        volume = l->data;
-        mount = g_volume_get_mount (volume);
-
-        if (mount != NULL)
-        {
-            network_mounts = g_list_prepend (network_mounts, mount);
-            continue;
-        }
-        else
-        {
-            start_icon = g_volume_get_symbolic_icon (volume);
-            name = g_volume_get_name (volume);
-            tooltip = g_strdup_printf (_("Mount and Open “%s”"), name);
-
-            add_place (sidebar, NAUTILUS_SIDEBAR_ROW_EXTERNAL_MOUNT,
-                       NAUTILUS_SIDEBAR_SECTION_NETWORK,
-                       name, start_icon, NULL, NULL,
-                       NULL, volume, NULL, NULL, 0, tooltip);
-            g_object_unref (start_icon);
-            g_free (name);
-            g_free (tooltip);
-        }
+        start_icon = g_themed_icon_new_with_default_fallbacks (ICON_NAME_NETWORK_VIEW);
+        add_place (sidebar, NAUTILUS_SIDEBAR_ROW_BUILT_IN,
+                   NAUTILUS_SIDEBAR_SECTION_NETWORK,
+                   _("Network"), start_icon, NULL, SCHEME_NETWORK_VIEW ":///",
+                   NULL, NULL, NULL, NULL, 0,
+                   _("Open Network Locations"));
+        g_object_unref (start_icon);
     }
 
-    network_mounts = g_list_reverse (network_mounts);
-    for (l = network_mounts; l != NULL; l = l->next)
+    if (g_settings_get_boolean (nautilus_preferences,
+                                NAUTILUS_PREFERENCES_SHOW_SIDEBAR_NETWORK))
     {
-        char *mount_uri;
+        network_volumes = g_list_reverse (network_volumes);
+        for (l = network_volumes; l != NULL; l = l->next)
+        {
+            volume = l->data;
+            mount = g_volume_get_mount (volume);
 
-        mount = l->data;
-        root = g_mount_get_default_location (mount);
-        start_icon = g_mount_get_symbolic_icon (mount);
-        mount_uri = g_file_get_uri (root);
-        name = g_mount_get_name (mount);
-        tooltip = g_file_get_parse_name (root);
-        add_place (sidebar, NAUTILUS_SIDEBAR_ROW_EXTERNAL_MOUNT,
-                   NAUTILUS_SIDEBAR_SECTION_NETWORK,
-                   name, start_icon, NULL, mount_uri,
-                   NULL, NULL, mount, NULL, 0, tooltip);
-        g_object_unref (root);
-        g_object_unref (start_icon);
-        g_free (name);
-        g_free (mount_uri);
-        g_free (tooltip);
+            if (mount != NULL)
+            {
+                network_mounts = g_list_prepend (network_mounts, mount);
+                continue;
+            }
+            else
+            {
+                start_icon = g_volume_get_symbolic_icon (volume);
+                name = g_volume_get_name (volume);
+                tooltip = g_strdup_printf (_("Mount and Open “%s”"), name);
+
+                add_place (sidebar, NAUTILUS_SIDEBAR_ROW_EXTERNAL_MOUNT,
+                           NAUTILUS_SIDEBAR_SECTION_NETWORK,
+                           name, start_icon, NULL, NULL,
+                           NULL, volume, NULL, NULL, 0, tooltip);
+                g_object_unref (start_icon);
+                g_free (name);
+                g_free (tooltip);
+            }
+        }
+
+        network_mounts = g_list_reverse (network_mounts);
+        for (l = network_mounts; l != NULL; l = l->next)
+        {
+            char *mount_uri;
+
+            mount = l->data;
+            root = g_mount_get_default_location (mount);
+            start_icon = g_mount_get_symbolic_icon (mount);
+            mount_uri = g_file_get_uri (root);
+            name = g_mount_get_name (mount);
+            tooltip = g_file_get_parse_name (root);
+            add_place (sidebar, NAUTILUS_SIDEBAR_ROW_EXTERNAL_MOUNT,
+                       NAUTILUS_SIDEBAR_SECTION_NETWORK,
+                       name, start_icon, NULL, mount_uri,
+                       NULL, NULL, mount, NULL, 0, tooltip);
+            g_object_unref (root);
+            g_object_unref (start_icon);
+            g_free (name);
+            g_free (mount_uri);
+            g_free (tooltip);
+        }
     }
 
 
@@ -4148,7 +4182,14 @@ nautilus_sidebar_init (NautilusSidebar *sidebar)
                               sidebar);
 #endif
 
+    /* Whether the sidebar may show the Trash at all. The user preference is
+     * checked separately so that it can be toggled at runtime. */
     sidebar->show_trash = TRUE;
+
+    /* Rebuild the sidebar when one of its preferences changes. */
+    g_signal_connect_object (nautilus_preferences, "changed",
+                             G_CALLBACK (update_places), sidebar,
+                             G_CONNECT_SWAPPED);
 
     /* populate the sidebar */
     update_places (sidebar);

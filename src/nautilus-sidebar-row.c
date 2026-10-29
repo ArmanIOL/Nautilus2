@@ -10,6 +10,7 @@
 #include <gtk/gtk.h>
 #include "nautilus-enum-types.h"
 #include "nautilus-file.h"
+#include "nautilus-global-preferences.h"
 
 /* For section and place type enums */
 #include "nautilus-sidebar.h"
@@ -461,15 +462,20 @@ update_usage_accent (NautilusSidebarRow *self)
         "blue", "teal", "green", "yellow", "orange",
         "red", "pink", "purple", "slate",
     };
-    g_autofree char *accent = NULL;
+    g_autofree char *system_accent = NULL;
+    g_autofree char *override = NULL;
     g_autofree char *css_class = NULL;
+    const char *accent;
 
     if (self->interface_settings == NULL)
     {
         return;
     }
 
-    accent = g_settings_get_string (self->interface_settings, "accent-color");
+    system_accent = g_settings_get_string (self->interface_settings, "accent-color");
+    override = g_settings_get_string (nautilus_preferences,
+                                      NAUTILUS_PREFERENCES_SIDEBAR_USAGE_ACCENT);
+    accent = g_strcmp0 (override, "system") == 0 ? system_accent : override;
 
     for (guint i = 0; i < G_N_ELEMENTS (accents); i++)
     {
@@ -615,6 +621,10 @@ nautilus_sidebar_row_init (NautilusSidebarRow *self)
         {
             self->interface_settings = g_settings_new_full (schema, NULL, NULL);
             g_signal_connect_object (self->interface_settings, "changed::accent-color",
+                                     G_CALLBACK (update_usage_accent), self,
+                                     G_CONNECT_SWAPPED);
+            g_signal_connect_object (nautilus_preferences,
+                                     "changed::" NAUTILUS_PREFERENCES_SIDEBAR_USAGE_ACCENT,
                                      G_CALLBACK (update_usage_accent), self,
                                      G_CONNECT_SWAPPED);
             update_usage_accent (self);

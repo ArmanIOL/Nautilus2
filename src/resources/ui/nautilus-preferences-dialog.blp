@@ -114,4 +114,53 @@ Adw.PreferencesDialog preferences_dialog {
       }
     }
   }
+
+  Adw.PreferencesPage {
+    title: _("Sidebar");
+
+    Adw.PreferencesGroup {
+      title: _("Sidebar Items");
+      description: _("Choose which items are shown in the sidebar.");
+
+      Adw.SwitchRow show_sidebar_trash_row {
+        title: _("Show _Trash");
+        use-underline: true;
+      }
+
+      Adw.SwitchRow show_sidebar_network_row {
+        title: _("Show _Network Section");
+        use-underline: true;
+      }
+
+      Adw.SwitchRow show_sidebar_volumes_row {
+        title: _("Show _Volumes Section");
+        use-underline: true;
+      }
+
+      Adw.SwitchRow show_unmounted_volumes_row {
+        title: _("Show _Unmounted Volumes");
+        use-underline: true;
+      }
+    }
+
+    Adw.PreferencesGroup {
+      title: _("Volumes");
+      description: _("Control how local volumes are displayed in the sidebar.");
+
+      Adw.SwitchRow show_volume_sizes_row {
+        title: _("Show Volume _Sizes");
+        use-underline: true;
+      }
+
+      Adw.SwitchRow show_volume_usage_row {
+        title: _("Show _Used Space");
+        use-underline: true;
+      }
+
+      Adw.ComboRow usage_accent_row {
+        title: _("Usage _Color");
+        use-underline: true;
+      }
+    }
+  }
 }
