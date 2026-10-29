@@ -177,20 +177,20 @@
       <description>If set to true, file tooltips include the date the file was last accessed.</description>
     </key>
     <key type="s" name="ui-sidebar-position">
-      <default>'end'</default>
+      <default>'default'</default>
       <summary>Sidebar position</summary>
-      <description>Whether the places sidebar is displayed at the start or at the end of the window. Valid values are “start” and “end”.</description>
+      <description>Whether the places sidebar is displayed at the start or at the end of the window. The value “default” keeps the built-in position.</description>
     </key>
     <key type="s" name="ui-preview-panel-position">
-      <default>'end'</default>
+      <default>'default'</default>
       <summary>Preview panel position</summary>
-      <description>Whether the preview panel is displayed at the start or at the end of the window. Valid values are “start” and “end”.</description>
+      <description>Whether the preview panel is displayed at the start or at the end of the window. The value “default” keeps the built-in position.</description>
     </key>
     <key type="i" name="ui-preview-panel-width">
-      <range min="240" max="600"/>
-      <default>360</default>
+      <range min="0" max="600"/>
+      <default>0</default>
       <summary>Preview panel width</summary>
-      <description>Width of the preview panel in pixels.</description>
+      <description>Width of the preview panel in pixels. Zero keeps the built-in width.</description>
     </key>
     <key type="b" name="ui-dense-list-rows">
       <default>false</default>
@@ -229,12 +229,12 @@
       <description>If set to true, thumbnails are drawn with rounded corners.</description>
     </key>
     <key type="b" name="ui-thumbnail-shadow">
-      <default>true</default>
+      <default>false</default>
       <summary>Show thumbnail shadows</summary>
       <description>If set to true, thumbnails are drawn with a subtle shadow and outline.</description>
     </key>
     <key type="b" name="ui-animations">
-      <default>true</default>
+      <default>false</default>
       <summary>Enable interface animations</summary>
       <description>If set to true, the interface uses animated transitions.</description>
     </key>

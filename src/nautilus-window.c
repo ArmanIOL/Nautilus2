@@ -1303,25 +1303,39 @@ apply_interface_preferences (NautilusWindow *window)
     gboolean small_sidebar_icons;
 
     sidebar_position = nautilus_preferences_get_string (NAUTILUS_PREFERENCES_UI_SIDEBAR_POSITION,
-                                                        "end");
+                                                        "default");
     preview_position = nautilus_preferences_get_string (NAUTILUS_PREFERENCES_UI_PREVIEW_PANEL_POSITION,
-                                                        "end");
+                                                        "default");
     preview_width = nautilus_preferences_get_int (NAUTILUS_PREFERENCES_UI_PREVIEW_PANEL_WIDTH,
-                                                  360);
+                                                  0);
 
     adw_overlay_split_view_set_sidebar_position (ADW_OVERLAY_SPLIT_VIEW (window->split_view),
-                                                 g_strcmp0 (sidebar_position, "start") == 0
-                                                 ? GTK_PACK_START : GTK_PACK_END);
+                                                 g_strcmp0 (sidebar_position, "end") == 0
+                                                 ? GTK_PACK_END : GTK_PACK_START);
     adw_overlay_split_view_set_sidebar_position (ADW_OVERLAY_SPLIT_VIEW (window->preview_split_view),
                                                  g_strcmp0 (preview_position, "start") == 0
                                                  ? GTK_PACK_START : GTK_PACK_END);
 
-    adw_overlay_split_view_set_sidebar_width_unit (ADW_OVERLAY_SPLIT_VIEW (window->preview_split_view),
-                                                   ADW_LENGTH_UNIT_PX);
-    adw_overlay_split_view_set_min_sidebar_width (ADW_OVERLAY_SPLIT_VIEW (window->preview_split_view),
-                                                  preview_width);
-    adw_overlay_split_view_set_max_sidebar_width (ADW_OVERLAY_SPLIT_VIEW (window->preview_split_view),
-                                                  preview_width);
+    if (preview_width > 0)
+    {
+        adw_overlay_split_view_set_sidebar_width_unit (ADW_OVERLAY_SPLIT_VIEW (window->preview_split_view),
+                                                       ADW_LENGTH_UNIT_PX);
+        adw_overlay_split_view_set_min_sidebar_width (ADW_OVERLAY_SPLIT_VIEW (window->preview_split_view),
+                                                      preview_width);
+        adw_overlay_split_view_set_max_sidebar_width (ADW_OVERLAY_SPLIT_VIEW (window->preview_split_view),
+                                                      preview_width);
+    }
+    else
+    {
+        adw_overlay_split_view_set_sidebar_width_unit (ADW_OVERLAY_SPLIT_VIEW (window->preview_split_view),
+                                                       ADW_LENGTH_UNIT_SP);
+        adw_overlay_split_view_set_min_sidebar_width (ADW_OVERLAY_SPLIT_VIEW (window->preview_split_view),
+                                                      300);
+        adw_overlay_split_view_set_max_sidebar_width (ADW_OVERLAY_SPLIT_VIEW (window->preview_split_view),
+                                                      460);
+        adw_overlay_split_view_set_sidebar_width_fraction (ADW_OVERLAY_SPLIT_VIEW (window->preview_split_view),
+                                                           0.3);
+    }
 
     toggle_css_class (GTK_WIDGET (window),
                       "rounded-thumbnails",

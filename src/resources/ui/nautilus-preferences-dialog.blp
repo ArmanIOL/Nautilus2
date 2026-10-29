@@ -146,11 +146,11 @@ Adw.PreferencesDialog preferences_dialog {
 
       Adw.SpinRow preview_panel_width_row {
         title: _("Preview Panel _Width");
-        subtitle: _("Width of the preview panel in pixels.");
+        subtitle: _("Width of the preview panel in pixels. Zero uses the automatic width.");
         use-underline: true;
         digits: 0;
         adjustment: Adjustment {
-          lower: 240;
+          lower: 0;
           upper: 600;
           step-increment: 20;
         };

@@ -7448,8 +7448,8 @@ msgid "Preview Panel _Width"
 msgstr "_Ширина панели предпросмотра"
 
 #: src/resources/ui/nautilus-preferences-dialog.blp
-msgid "Width of the preview panel in pixels."
-msgstr "Ширина панели предпросмотра в пикселях."
+msgid "Width of the preview panel in pixels. Zero uses the automatic width."
+msgstr "Ширина панели предпросмотра в пикселях. Ноль — автоматическая ширина."
 
 #: src/resources/ui/nautilus-preferences-dialog.blp
 msgid "Lists and Grid"
@@ -7514,6 +7514,10 @@ msgstr "Включить _анимации"
 #: src/resources/ui/nautilus-preferences-dialog.blp
 msgid "Show files and folders whose names start with a dot."
 msgstr "Показывать файлы и папки, имена которых начинаются с точки."
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Default"
+msgstr "По умолчанию"
 
 #: src/resources/ui/nautilus-preferences-dialog.blp
 msgid "Left"

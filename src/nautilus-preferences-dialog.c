@@ -120,13 +120,13 @@ static const char * const speed_tradeoff_values[] =
 
 static const char * const sidebar_position_values[] =
 {
-    "start", "end",
+    "default", "start", "end",
     NULL
 };
 
 static const char * const preview_panel_position_values[] =
 {
-    "start", "end",
+    "default", "start", "end",
     NULL
 };
 
@@ -374,9 +374,9 @@ nautilus_preferences_dialog_setup (GtkBuilder *builder)
                                     _("Green"), _("Yellow"), _("Orange"), _("Red"),
                                     _("Pink"), _("Purple"), _("Slate"), NULL });
     setup_combo (builder, NAUTILUS_PREFERENCES_DIALOG_SIDEBAR_POSITION_WIDGET,
-                 (const char *[]) { _("Left"), _("Right"), NULL });
+                 (const char *[]) { _("Default"), _("Left"), _("Right"), NULL });
     setup_combo (builder, NAUTILUS_PREFERENCES_DIALOG_PREVIEW_PANEL_POSITION_WIDGET,
-                 (const char *[]) { _("Left"), _("Right"), NULL });
+                 (const char *[]) { _("Default"), _("Left"), _("Right"), NULL });
 
     /* setup preferences */
     bind_builder_bool (builder, gtk_filechooser_preferences,
@@ -481,7 +481,7 @@ nautilus_preferences_dialog_setup (GtkBuilder *builder)
     setup_int_row (builder,
                    NAUTILUS_PREFERENCES_DIALOG_PREVIEW_PANEL_WIDTH_WIDGET,
                    NAUTILUS_PREFERENCES_UI_PREVIEW_PANEL_WIDTH,
-                   360);
+                   0);
     setup_int_row (builder,
                    NAUTILUS_PREFERENCES_DIALOG_GRID_LABEL_LINES_WIDGET,
                    NAUTILUS_PREFERENCES_UI_GRID_LABEL_LINES,
