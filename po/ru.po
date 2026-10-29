@@ -7359,6 +7359,46 @@ msgstr "Показывать крупное превью и сведения о 
 msgid "Select a file to preview it"
 msgstr "Выберите файл для предпросмотра"
 
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Show _File Icons in Folder Previews"
+msgstr "Показывать _значки файлов в превью папок"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Number of _Items in Folder Previews"
+msgstr "Количество _элементов в превью папок"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "How many items to show inside each folder preview."
+msgstr "Сколько элементов показывать внутри каждого превью папки."
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "File Tooltips"
+msgstr "Всплывающие подсказки"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Show File _Tooltips"
+msgstr "Показывать подсказки для _файлов"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Hovering over a file shows its preview and details, like Dolphin."
+msgstr "При наведении на файл показываются его превью и сведения, как в Dolphin."
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Show _Previews in Tooltips"
+msgstr "Показывать _превью в подсказках"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Show _Modification Date"
+msgstr "Показывать дату _изменения"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Show _Access Date"
+msgstr "Показывать дату _доступа"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Show _Creation Date"
+msgstr "Показывать дату _создания"
+
 #~ msgid "Wallpapers"
 #~ msgstr "Обои"
 

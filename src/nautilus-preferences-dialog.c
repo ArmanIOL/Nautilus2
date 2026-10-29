@@ -55,6 +55,20 @@
         "thumbnail_limit_row"
 #define NAUTILUS_PREFERENCES_DIALOG_CLEAR_THUMBNAIL_CACHE_WIDGET               \
         "clear_thumbnail_cache_button"
+#define NAUTILUS_PREFERENCES_DIALOG_FOLDER_PREVIEW_ICONS_WIDGET                \
+        "folder_preview_icons_row"
+#define NAUTILUS_PREFERENCES_DIALOG_FOLDER_PREVIEW_ITEMS_WIDGET                \
+        "folder_preview_items_row"
+#define NAUTILUS_PREFERENCES_DIALOG_FILE_TOOLTIPS_WIDGET                       \
+        "file_tooltips_row"
+#define NAUTILUS_PREFERENCES_DIALOG_TOOLTIP_THUMBNAILS_WIDGET                  \
+        "tooltip_thumbnails_row"
+#define NAUTILUS_PREFERENCES_DIALOG_TOOLTIP_DATE_MODIFIED_WIDGET               \
+        "tooltip_date_modified_row"
+#define NAUTILUS_PREFERENCES_DIALOG_TOOLTIP_DATE_ACCESSED_WIDGET               \
+        "tooltip_date_accessed_row"
+#define NAUTILUS_PREFERENCES_DIALOG_TOOLTIP_DATE_CREATED_WIDGET                \
+        "tooltip_date_created_row"
 
 /* toggle group preferences */
 #define NAUTILUS_PREFERENCES_DIALOG_OPEN_ACTION_TOGGLE_GROUP                   \
@@ -235,6 +249,29 @@ thumbnail_limit_changed (AdwSpinRow *row,
 }
 
 static void
+folder_preview_items_changed (AdwSpinRow *row,
+                              GParamSpec *pspec,
+                              gpointer    user_data)
+{
+    g_settings_set_int (nautilus_preferences,
+                        NAUTILUS_PREFERENCES_FOLDER_PREVIEW_ITEMS,
+                        (gint) adw_spin_row_get_value (row));
+}
+
+static void
+setup_folder_preview_items (GtkBuilder *builder)
+{
+    AdwSpinRow *row = ADW_SPIN_ROW (gtk_builder_get_object (builder,
+                                                            NAUTILUS_PREFERENCES_DIALOG_FOLDER_PREVIEW_ITEMS_WIDGET));
+
+    adw_spin_row_set_value (row,
+                            (double) nautilus_preferences_get_int (NAUTILUS_PREFERENCES_FOLDER_PREVIEW_ITEMS,
+                                                                   4));
+    g_signal_connect (row, "notify::value",
+                      G_CALLBACK (folder_preview_items_changed), NULL);
+}
+
+static void
 setup_thumbnail_limit (GtkBuilder *builder)
 {
     AdwSpinRow *row = ADW_SPIN_ROW (gtk_builder_get_object (builder,
@@ -309,7 +346,26 @@ nautilus_preferences_dialog_setup (GtkBuilder *builder)
     bind_builder_bool (builder, nautilus_preferences,
                        NAUTILUS_PREFERENCES_DIALOG_PREVIEW_PANEL_WIDGET,
                        NAUTILUS_PREFERENCES_SHOW_PREVIEW_PANEL);
+    bind_builder_bool (builder, nautilus_preferences,
+                       NAUTILUS_PREFERENCES_DIALOG_FOLDER_PREVIEW_ICONS_WIDGET,
+                       NAUTILUS_PREFERENCES_FOLDER_PREVIEW_ICONS);
+    bind_builder_bool (builder, nautilus_preferences,
+                       NAUTILUS_PREFERENCES_DIALOG_FILE_TOOLTIPS_WIDGET,
+                       NAUTILUS_PREFERENCES_SHOW_FILE_TOOLTIPS);
+    bind_builder_bool (builder, nautilus_preferences,
+                       NAUTILUS_PREFERENCES_DIALOG_TOOLTIP_THUMBNAILS_WIDGET,
+                       NAUTILUS_PREFERENCES_TOOLTIP_THUMBNAILS);
+    bind_builder_bool (builder, nautilus_preferences,
+                       NAUTILUS_PREFERENCES_DIALOG_TOOLTIP_DATE_MODIFIED_WIDGET,
+                       NAUTILUS_PREFERENCES_TOOLTIP_DATE_MODIFIED);
+    bind_builder_bool (builder, nautilus_preferences,
+                       NAUTILUS_PREFERENCES_DIALOG_TOOLTIP_DATE_ACCESSED_WIDGET,
+                       NAUTILUS_PREFERENCES_TOOLTIP_DATE_ACCESSED);
+    bind_builder_bool (builder, nautilus_preferences,
+                       NAUTILUS_PREFERENCES_DIALOG_TOOLTIP_DATE_CREATED_WIDGET,
+                       NAUTILUS_PREFERENCES_TOOLTIP_DATE_CREATED);
 
+    setup_folder_preview_items (builder);
     setup_thumbnail_limit (builder);
     g_signal_connect (gtk_builder_get_object (builder,
                                               NAUTILUS_PREFERENCES_DIALOG_CLEAR_THUMBNAIL_CACHE_WIDGET),

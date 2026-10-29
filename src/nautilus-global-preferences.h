@@ -113,6 +113,13 @@ typedef enum
 
 /* Thumbnails and previews */
 #define NAUTILUS_PREFERENCES_SHOW_FOLDER_THUMBNAILS "show-folder-thumbnails"
+#define NAUTILUS_PREFERENCES_FOLDER_PREVIEW_ITEMS "folder-preview-items"
+#define NAUTILUS_PREFERENCES_FOLDER_PREVIEW_ICONS "folder-preview-icons"
+#define NAUTILUS_PREFERENCES_SHOW_FILE_TOOLTIPS "show-file-tooltips"
+#define NAUTILUS_PREFERENCES_TOOLTIP_THUMBNAILS "tooltip-thumbnails"
+#define NAUTILUS_PREFERENCES_TOOLTIP_DATE_MODIFIED "tooltip-date-modified"
+#define NAUTILUS_PREFERENCES_TOOLTIP_DATE_ACCESSED "tooltip-date-accessed"
+#define NAUTILUS_PREFERENCES_TOOLTIP_DATE_CREATED "tooltip-date-created"
 #define NAUTILUS_PREFERENCES_SHOW_LIST_THUMBNAILS "show-list-thumbnails"
 #define NAUTILUS_PREFERENCES_THUMBNAIL_PDF "thumbnail-pdf"
 #define NAUTILUS_PREFERENCES_THUMBNAIL_VIDEO "thumbnail-video"
@@ -143,6 +150,8 @@ gboolean nautilus_global_preferences_get_use_extra_buttons (void);
  * the installed schema (for example when running from the build directory). */
 gboolean nautilus_preferences_get_boolean (const char *key,
                                            gboolean    fallback);
+gint nautilus_preferences_get_int (const char *key,
+                                   gint        fallback);
 
 extern GSettings *nautilus_preferences;
 extern GSettings *nautilus_compression_preferences;

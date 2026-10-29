@@ -117,6 +117,8 @@ libnautilus_sources = [
   'nautilus-file-operations-dbus-data.c',
   'nautilus-file-operations-dbus-data.h',
   'nautilus-file-operations.c',
+  'nautilus-file-tooltip.c',
+  'nautilus-file-tooltip.h',
   'nautilus-file-operations.h',
   'nautilus-file-private.h',
   'nautilus-file-undo-manager.c',

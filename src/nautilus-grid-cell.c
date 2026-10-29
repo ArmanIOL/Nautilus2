@@ -9,6 +9,7 @@
 #include <adwaita.h>
 
 #include "nautilus-file.h"
+#include "nautilus-file-tooltip.h"
 #include "nautilus-global-preferences.h"
 #include "nautilus-image.h"
 #include "nautilus-tag-manager.h"
@@ -237,6 +238,11 @@ on_label_query_tooltip (GtkWidget  *widget,
                         gpointer    user_data)
 {
     GtkLabel *label = GTK_LABEL (widget);
+
+    if (nautilus_file_tooltip_query (widget, tooltip))
+    {
+        return TRUE;
+    }
 
     if (pango_layout_is_ellipsized (gtk_label_get_layout (label)))
     {
@@ -486,6 +492,17 @@ nautilus_grid_cell_class_init (NautilusGridCellClass *klass)
     gtk_widget_class_set_accessible_role (widget_class, GTK_ACCESSIBLE_ROLE_NONE);
 }
 
+static gboolean
+on_query_tooltip (GtkWidget  *widget,
+                  int         x,
+                  int         y,
+                  gboolean    keyboard_tip,
+                  GtkTooltip *tooltip,
+                  gpointer    user_data)
+{
+    return nautilus_file_tooltip_query (widget, tooltip);
+}
+
 static void
 nautilus_grid_cell_init (NautilusGridCell *self)
 {
@@ -494,6 +511,9 @@ nautilus_grid_cell_init (NautilusGridCell *self)
     g_signal_connect (self, "notify::icon-size",
                       G_CALLBACK (on_icon_size_changed), NULL);
     g_signal_connect (self, "notify::scale-factor", G_CALLBACK (on_icon_size_changed), NULL);
+
+    gtk_widget_set_has_tooltip (GTK_WIDGET (self), TRUE);
+    g_signal_connect (self, "query-tooltip", G_CALLBACK (on_query_tooltip), NULL);
 
     g_signal_connect_object (nautilus_tag_manager_get (), "starred-changed",
                              G_CALLBACK (on_starred_changed), self, G_CONNECT_DEFAULT);

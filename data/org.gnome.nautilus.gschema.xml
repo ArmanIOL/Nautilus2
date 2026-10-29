@@ -145,6 +145,42 @@
       <summary>Show previews of folder contents</summary>
       <description>If set to true, folders are shown with a preview composed from the items they contain, similar to Dolphin.</description>
     </key>
+    <key type="i" name="folder-preview-items">
+      <range min="1" max="4"/>
+      <default>4</default>
+      <summary>Number of items in a folder preview</summary>
+      <description>How many items inside a folder are shown in its preview, from 1 to 4.</description>
+    </key>
+    <key type="b" name="folder-preview-icons">
+      <default>true</default>
+      <summary>Show file icons in folder previews</summary>
+      <description>If set to true, files without a thumbnail are represented by their file type icon in folder previews.</description>
+    </key>
+    <key type="b" name="show-file-tooltips">
+      <default>true</default>
+      <summary>Show rich tooltips for files</summary>
+      <description>If set to true, hovering over a file shows a tooltip with a preview and file details.</description>
+    </key>
+    <key type="b" name="tooltip-thumbnails">
+      <default>true</default>
+      <summary>Show a thumbnail in file tooltips</summary>
+      <description>If set to true, file tooltips include a thumbnail or the file type icon.</description>
+    </key>
+    <key type="b" name="tooltip-date-modified">
+      <default>true</default>
+      <summary>Show the modification date in file tooltips</summary>
+      <description>If set to true, file tooltips include the date the file was last modified.</description>
+    </key>
+    <key type="b" name="tooltip-date-accessed">
+      <default>true</default>
+      <summary>Show the access date in file tooltips</summary>
+      <description>If set to true, file tooltips include the date the file was last accessed.</description>
+    </key>
+    <key type="b" name="tooltip-date-created">
+      <default>true</default>
+      <summary>Show the creation date in file tooltips</summary>
+      <description>If set to true, file tooltips include the date the file was created.</description>
+    </key>
     <key type="b" name="show-list-thumbnails">
       <default>true</default>
       <summary>Show thumbnails in the list view</summary>

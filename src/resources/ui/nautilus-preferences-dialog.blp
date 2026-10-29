@@ -175,6 +175,23 @@ Adw.PreferencesDialog preferences_dialog {
         title: _("Enable _Folder Previews");
         use-underline: true;
       }
+
+      Adw.SwitchRow folder_preview_icons_row {
+        title: _("Show _File Icons in Folder Previews");
+        use-underline: true;
+      }
+
+      Adw.SpinRow folder_preview_items_row {
+        title: _("Number of _Items in Folder Previews");
+        subtitle: _("How many items to show inside each folder preview.");
+        use-underline: true;
+        digits: 0;
+        adjustment: Adjustment {
+          lower: 1;
+          upper: 4;
+          step-increment: 1;
+        };
+      }
     }
 
     Adw.PreferencesGroup {
@@ -232,6 +249,36 @@ Adw.PreferencesDialog preferences_dialog {
             "destructive-action",
           ]
         }
+      }
+    }
+
+    Adw.PreferencesGroup {
+      title: _("File Tooltips");
+
+      Adw.SwitchRow file_tooltips_row {
+        title: _("Show File _Tooltips");
+        subtitle: _("Hovering over a file shows its preview and details, like Dolphin.");
+        use-underline: true;
+      }
+
+      Adw.SwitchRow tooltip_thumbnails_row {
+        title: _("Show _Previews in Tooltips");
+        use-underline: true;
+      }
+
+      Adw.SwitchRow tooltip_date_modified_row {
+        title: _("Show _Modification Date");
+        use-underline: true;
+      }
+
+      Adw.SwitchRow tooltip_date_accessed_row {
+        title: _("Show _Access Date");
+        use-underline: true;
+      }
+
+      Adw.SwitchRow tooltip_date_created_row {
+        title: _("Show _Creation Date");
+        use-underline: true;
       }
     }
 

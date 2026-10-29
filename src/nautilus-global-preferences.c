@@ -144,6 +144,32 @@ nautilus_preferences_get_boolean (const char *key,
     return value;
 }
 
+gint
+nautilus_preferences_get_int (const char *key,
+                              gint        fallback)
+{
+    GSettingsSchemaSource *source;
+    GSettingsSchema *schema;
+    gboolean has_key;
+    gint value;
+
+    source = g_settings_schema_source_get_default ();
+    schema = source != NULL
+             ? g_settings_schema_source_lookup (source,
+                                                "org.gnome.nautilus.preferences",
+                                                TRUE)
+             : NULL;
+    has_key = schema != NULL && g_settings_schema_has_key (schema, key);
+    value = has_key ? g_settings_get_int (nautilus_preferences, key) : fallback;
+
+    if (schema != NULL)
+    {
+        g_settings_schema_unref (schema);
+    }
+
+    return value;
+}
+
 guint
 nautilus_global_preferences_get_back_button (void)
 {

@@ -10,6 +10,7 @@
 
 #include "nautilus-directory.h"
 #include "nautilus-file.h"
+#include "nautilus-file-tooltip.h"
 #include "nautilus-file-utilities.h"
 #include "nautilus-global-preferences.h"
 #include "nautilus-image.h"
@@ -335,6 +336,11 @@ on_label_query_tooltip (GtkWidget  *widget,
 {
     GtkLabel *label = GTK_LABEL (widget);
 
+    if (nautilus_file_tooltip_query (widget, tooltip))
+    {
+        return TRUE;
+    }
+
     if (pango_layout_is_ellipsized (gtk_label_get_layout (label)))
     {
         gtk_tooltip_set_text (tooltip, gtk_label_get_text (label));
@@ -345,6 +351,17 @@ on_label_query_tooltip (GtkWidget  *widget,
     return FALSE;
 }
 
+static gboolean
+on_query_tooltip (GtkWidget  *widget,
+                  int         x,
+                  int         y,
+                  gboolean    keyboard_tip,
+                  GtkTooltip *tooltip,
+                  gpointer    user_data)
+{
+    return nautilus_file_tooltip_query (widget, tooltip);
+}
+
 static void
 nautilus_name_cell_init (NautilusNameCell *self)
 {
@@ -353,6 +370,9 @@ nautilus_name_cell_init (NautilusNameCell *self)
     g_signal_connect (self, "notify::icon-size",
                       G_CALLBACK (on_icon_size_changed), NULL);
     g_signal_connect (self, "notify::scale-factor", G_CALLBACK (on_icon_size_changed), NULL);
+
+    gtk_widget_set_has_tooltip (GTK_WIDGET (self), TRUE);
+    g_signal_connect (self, "query-tooltip", G_CALLBACK (on_query_tooltip), NULL);
 
     /* Connect automatically to an item. */
     self->item_signal_group = g_signal_group_new (NAUTILUS_TYPE_VIEW_ITEM);

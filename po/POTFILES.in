@@ -31,6 +31,7 @@ src/nautilus-file.c
 src/nautilus-file-chooser.c
 src/nautilus-file-conflict-dialog.c
 src/nautilus-file-operations.c
+src/nautilus-file-tooltip.c
 src/nautilus-file-undo-operations.c
 src/nautilus-file-utilities.c
 src/nautilus-filename-utilities.c

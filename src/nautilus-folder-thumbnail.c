@@ -8,10 +8,13 @@
 
 #include <glib/gstdio.h>
 #include <gtk/gtk.h>
+#include <math.h>
 #include <unistd.h>
 
 #define GNOME_DESKTOP_USE_UNSTABLE_API
 #include <libgnome-desktop/gnome-desktop-thumbnail.h>
+
+#include "nautilus-global-preferences.h"
 
 #define FOLDER_THUMBNAIL_MAX_ITEMS 4
 #define FOLDER_THUMBNAIL_SCAN_LIMIT 64
@@ -25,8 +28,16 @@ typedef struct
 
 typedef struct
 {
+    int size;
+    int max_items;
+    gboolean show_icons;
+} FolderThumbnailOptions;
+
+typedef struct
+{
     GPtrArray *entries;
     int size;
+    gboolean show_icons;
 } FolderThumbnailResult;
 
 static void
@@ -35,6 +46,12 @@ folder_thumbnail_entry_free (FolderThumbnailEntry *entry)
     g_free (entry->name);
     g_clear_object (&entry->pixbuf);
     g_free (entry);
+}
+
+static void
+folder_thumbnail_options_free (FolderThumbnailOptions *options)
+{
+    g_free (options);
 }
 
 static void
@@ -158,7 +175,8 @@ folder_thumbnail_thread (GTask        *task,
                          GCancellable *cancellable)
 {
     GFile *location = G_FILE (source_object);
-    int size = GPOINTER_TO_INT (task_data);
+    FolderThumbnailOptions *options = task_data;
+    int size = options->size;
     g_autofree char *path = g_file_get_path (location);
     g_autoptr (GPtrArray) found = NULL;
     g_autoptr (GDir) dir = NULL;
@@ -225,9 +243,9 @@ folder_thumbnail_thread (GTask        *task,
 
     g_ptr_array_sort (found, compare_entry_names);
 
-    /* Keep at most four entries, preferring those which already have a
-     * generated preview. */
-    while (found->len > FOLDER_THUMBNAIL_MAX_ITEMS)
+    /* Keep the configured number of entries, preferring those which already
+     * have a generated preview. */
+    while (found->len > (guint) options->max_items)
     {
         gboolean removed = FALSE;
 
@@ -253,6 +271,7 @@ folder_thumbnail_thread (GTask        *task,
 
     result->entries = g_ptr_array_ref (found);
     result->size = size;
+    result->show_icons = options->show_icons;
 
     g_task_return_pointer (task, result, (GDestroyNotify) folder_thumbnail_result_free);
 }
@@ -265,56 +284,40 @@ nautilus_folder_thumbnail_create_async (GFile               *location,
                                         gpointer             user_data)
 {
     g_autoptr (GTask) task = g_task_new (location, cancellable, callback, user_data);
+    FolderThumbnailOptions *options = g_new0 (FolderThumbnailOptions, 1);
 
     /* Always render at least twice the requested size so that the preview
      * stays sharp on high density displays. */
-    size = CLAMP (size * 2, 128, 512);
+    options->size = CLAMP (size * 2, 128, 512);
+    options->max_items = CLAMP (nautilus_preferences_get_int (NAUTILUS_PREFERENCES_FOLDER_PREVIEW_ITEMS,
+                                                              4), 1, FOLDER_THUMBNAIL_MAX_ITEMS);
+    options->show_icons = nautilus_preferences_get_boolean (NAUTILUS_PREFERENCES_FOLDER_PREVIEW_ICONS,
+                                                            TRUE);
 
-    g_task_set_task_data (task, GINT_TO_POINTER (size), NULL);
+    g_task_set_task_data (task, options, (GDestroyNotify) folder_thumbnail_options_free);
     g_task_set_priority (task, G_PRIORITY_LOW);
     g_task_run_in_thread (task, folder_thumbnail_thread);
 }
 
-static GdkPixbuf *
-scale_cover (GdkPixbuf *src,
-             int        size)
+static GtkIconPaintable *
+lookup_icon_paintable (GtkIconTheme *theme,
+                       const char   *name,
+                       int           size)
 {
-    int width = gdk_pixbuf_get_width (src);
-    int height = gdk_pixbuf_get_height (src);
-    double scale;
-    int scaled_width;
-    int scaled_height;
-    g_autoptr (GdkPixbuf) scaled = NULL;
-    int x;
-    int y;
+    GtkIconPaintable *paintable = gtk_icon_theme_lookup_icon (theme, name, NULL,
+                                                              size, 1,
+                                                              GTK_TEXT_DIR_NONE,
+                                                              GTK_ICON_LOOKUP_FORCE_REGULAR);
 
-    if (width <= 0 || height <= 0)
+    if (paintable == NULL)
     {
-        return NULL;
+        paintable = gtk_icon_theme_lookup_icon (theme, name, NULL,
+                                                size, 1,
+                                                GTK_TEXT_DIR_NONE,
+                                                0);
     }
 
-    scale = MAX ((double) size / width, (double) size / height);
-    scaled_width = MAX (1, (int) ceil (width * scale));
-    scaled_height = MAX (1, (int) ceil (height * scale));
-
-    scaled = gdk_pixbuf_scale_simple (src, scaled_width, scaled_height,
-                                      GDK_INTERP_BILINEAR);
-
-    if (scaled == NULL)
-    {
-        return NULL;
-    }
-
-    x = MAX (0, (scaled_width - size) / 2);
-    y = MAX (0, (scaled_height - size) / 2);
-
-    if (x == 0 && y == 0 && scaled_width == size && scaled_height == size)
-    {
-        return (GdkPixbuf *) g_object_ref (scaled);
-    }
-
-    return gdk_pixbuf_new_subpixbuf (scaled, x, y, MIN (size, scaled_width),
-                                     MIN (size, scaled_height));
+    return paintable;
 }
 
 static char *
@@ -345,6 +348,116 @@ get_fallback_icon_name (const char *name,
     return g_strdup ("text-x-generic");
 }
 
+static GdkPixbuf *
+scale_cover (GdkPixbuf *src,
+             int        target_width,
+             int        target_height)
+{
+    int width = gdk_pixbuf_get_width (src);
+    int height = gdk_pixbuf_get_height (src);
+    double scale;
+    int scaled_width;
+    int scaled_height;
+    g_autoptr (GdkPixbuf) scaled = NULL;
+    int x;
+    int y;
+
+    if (width <= 0 || height <= 0 || target_width <= 0 || target_height <= 0)
+    {
+        return NULL;
+    }
+
+    scale = MAX ((double) target_width / width, (double) target_height / height);
+    scaled_width = MAX (1, (int) ceil (width * scale));
+    scaled_height = MAX (1, (int) ceil (height * scale));
+
+    scaled = gdk_pixbuf_scale_simple (src, scaled_width, scaled_height,
+                                      GDK_INTERP_BILINEAR);
+
+    if (scaled == NULL)
+    {
+        return NULL;
+    }
+
+    x = MAX (0, (scaled_width - target_width) / 2);
+    y = MAX (0, (scaled_height - target_height) / 2);
+
+    return gdk_pixbuf_new_subpixbuf (scaled, x, y,
+                                     MIN (target_width, scaled_width),
+                                     MIN (target_height, scaled_height));
+}
+
+static void
+snapshot_paintable (GtkSnapshot *snap,
+                    GdkPaintable *paintable,
+                    int           x,
+                    int           y,
+                    int           width,
+                    int           height)
+{
+    gtk_snapshot_save (snap);
+    gtk_snapshot_translate (snap, &GRAPHENE_POINT_INIT (x, y));
+    gdk_paintable_snapshot (paintable, GDK_SNAPSHOT (snap), width, height);
+    gtk_snapshot_restore (snap);
+}
+
+static void
+snapshot_entry (GtkSnapshot           *snap,
+                GtkIconTheme          *theme,
+                FolderThumbnailEntry  *entry,
+                gboolean               show_icons,
+                int                    x,
+                int                    y,
+                int                    width,
+                int                    height)
+{
+    if (entry->pixbuf != NULL)
+    {
+        g_autoptr (GdkPixbuf) scaled = scale_cover (entry->pixbuf, width, height);
+
+        if (scaled != NULL)
+        {
+            g_autoptr (GdkTexture) texture = gdk_texture_new_for_pixbuf (scaled);
+
+            snapshot_paintable (snap, GDK_PAINTABLE (texture), x, y, width, height);
+
+            return;
+        }
+    }
+
+    if (!show_icons)
+    {
+        return;
+    }
+
+    g_autofree char *icon_name = get_fallback_icon_name (entry->name, entry->is_dir);
+    g_autoptr (GtkIconPaintable) icon = lookup_icon_paintable (theme, icon_name,
+                                                               MIN (width, height));
+
+    if (icon == NULL)
+    {
+        return;
+    }
+
+    int icon_size = MIN (width, height);
+    int icon_x = x + (width - icon_size) / 2;
+    int icon_y = y + (height - icon_size) / 2;
+
+    snapshot_paintable (snap, GDK_PAINTABLE (icon), icon_x, icon_y,
+                        icon_size, icon_size);
+}
+
+static void
+snapshot_default_folder (GtkSnapshot *snap,
+                         int          size)
+{
+    GdkRGBA color = { 0.31, 0.55, 0.84, 1.0 };
+    graphene_rect_t bounds = GRAPHENE_RECT_INIT (size * 0.08, size * 0.16,
+                                                 size * 0.84, size * 0.72);
+
+    gtk_snapshot_append_color (snap, &color, &bounds);
+}
+
 GdkTexture *
 nautilus_folder_thumbnail_create_finish (GAsyncResult  *result,
                                          GError       **error)
@@ -359,85 +472,100 @@ nautilus_folder_thumbnail_create_finish (GAsyncResult  *result,
 
     GPtrArray *entries = thumb_result->entries;
     int size = thumb_result->size;
-    int gap = MAX (2, size / 64);
-    g_autoptr (GdkPixbuf) base = gdk_pixbuf_new (GDK_COLORSPACE_RGB, TRUE, 8, size, size);
+    g_autoptr (GtkSnapshot) snap = gtk_snapshot_new ();
+    GtkIconTheme *theme = gtk_icon_theme_get_for_display (gdk_display_get_default ());
+    g_autoptr (GtkIconPaintable) folder_icon = lookup_icon_paintable (theme, "folder", size);
 
-    if (base == NULL)
+    if (folder_icon != NULL)
     {
-        g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_FAILED,
-                             "Could not allocate folder preview");
-        return NULL;
+        snapshot_paintable (snap, GDK_PAINTABLE (folder_icon), 0, 0, size, size);
+    }
+    else
+    {
+        snapshot_default_folder (snap, size);
     }
 
-    gdk_pixbuf_fill (base, 0x00000000);
-
+    /* Keep the contents inside the body of the folder icon, like Dolphin. */
+    int inner_x = round (size * 0.15);
+    int inner_y = round (size * 0.31);
+    int inner_width = size - 2 * inner_x;
+    int inner_height = round (size * 0.83) - inner_y;
+    int gap = MAX (1, size / 128);
     guint n = MIN (entries->len, FOLDER_THUMBNAIL_MAX_ITEMS);
-    int cell = (n == 1) ? size : (size - gap) / 2;
-    GtkIconTheme *theme = gtk_icon_theme_get_for_display (gdk_display_get_default ());
+
+    if (n == 0)
+    {
+        goto out;
+    }
+
+    int cell_width;
+    int cell_height;
+    int total_height;
+
+    if (n == 1)
+    {
+        cell_width = inner_width;
+        cell_height = inner_height;
+        total_height = inner_height;
+    }
+    else if (n == 2)
+    {
+        cell_width = (inner_width - gap) / 2;
+        cell_height = inner_height;
+        total_height = inner_height;
+    }
+    else
+    {
+        cell_width = (inner_width - gap) / 2;
+        cell_height = (inner_height - gap) / 2;
+        total_height = 2 * cell_height + gap;
+    }
+
+    int base_y = inner_y + (inner_height - total_height) / 2;
 
     for (guint i = 0; i < n; i++)
     {
         FolderThumbnailEntry *entry = entries->pdata[i];
-        g_autoptr (GdkPixbuf) scaled = NULL;
-        int x;
-        int y;
+        int row;
+        int column;
+        int items_in_row;
+        int row_width;
 
-        if (n == 1)
+        if (n <= 2)
         {
-            x = 0;
-            y = 0;
-        }
-        else if (n == 2)
-        {
-            x = i * (cell + gap);
-            y = (size - cell) / 2;
+            row = 0;
+            column = i;
+            items_in_row = n;
         }
         else
         {
-            x = (i % 2) * (cell + gap);
-            y = (i / 2) * (cell + gap);
+            row = i / 2;
+            column = i % 2;
+            items_in_row = MIN (2, n - row * 2);
         }
 
-        if (entry->pixbuf != NULL)
-        {
-            scaled = scale_cover (entry->pixbuf, cell);
-        }
+        row_width = items_in_row * cell_width + (items_in_row - 1) * gap;
 
-        if (scaled == NULL)
-        {
-            g_autofree char *icon_name = get_fallback_icon_name (entry->name, entry->is_dir);
-            g_autoptr (GtkIconPaintable) icon_paintable =
-                gtk_icon_theme_lookup_icon (theme, icon_name, NULL, cell, 1,
-                                            GTK_TEXT_DIR_NONE, 0);
+        int x = inner_x + (inner_width - row_width) / 2 + column * (cell_width + gap);
+        int y = base_y + row * (cell_height + gap);
 
-            if (icon_paintable != NULL)
-            {
-                g_autoptr (GFile) icon_file = gtk_icon_paintable_get_file (icon_paintable);
-
-                if (icon_file != NULL)
-                {
-                    g_autofree char *icon_path = g_file_get_path (icon_file);
-
-                    if (icon_path != NULL)
-                    {
-                        scaled = gdk_pixbuf_new_from_file_at_scale (icon_path, cell, cell,
-                                                                    TRUE, NULL);
-                    }
-                }
-            }
-        }
-
-        if (scaled == NULL)
-        {
-            continue;
-        }
-
-        gdk_pixbuf_composite (scaled, base, x, y,
-                              gdk_pixbuf_get_width (scaled),
-                              gdk_pixbuf_get_height (scaled),
-                              0, 0, 1.0, 1.0,
-                              GDK_INTERP_BILINEAR, 255);
+        snapshot_entry (snap, theme, entry, thumb_result->show_icons,
+                        x, y, cell_width, cell_height);
     }
 
-    return gdk_texture_new_for_pixbuf (base);
+out:
+    {
+        graphene_rect_t bounds = GRAPHENE_RECT_INIT (0, 0, size, size);
+        GskRenderNode *node = gtk_snapshot_free_to_node (g_steal_pointer (&snap));
+        g_autoptr (GskRenderer) renderer = gsk_cairo_renderer_new ();
+
+        gsk_renderer_realize_for_display (renderer, gdk_display_get_default (), NULL);
+
+        GdkTexture *texture = gsk_renderer_render_texture (renderer, node, &bounds);
+
+        gsk_renderer_unrealize (renderer);
+        gsk_render_node_unref (node);
+
+        return texture;
+    }
 }
