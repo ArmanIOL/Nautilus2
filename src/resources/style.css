@@ -397,3 +397,15 @@ rubberband {
   font-weight: bold;
   opacity: 0.55;
 }
+
+/* Sidebar resize handle */
+
+.sidebar-resize-handle {
+  background: transparent;
+  transition: background 150ms ease;
+}
+
+.sidebar-resize-handle:hover,
+.sidebar-resize-handle:active {
+  background: color-mix(in srgb, currentColor 18%, transparent);
+}

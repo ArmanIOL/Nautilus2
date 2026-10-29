@@ -7163,6 +7163,10 @@ msgstr "Открыть папку «Изображения»"
 msgid "Open the Videos folder"
 msgstr "Открыть папку «Видео»"
 
+#: src/nautilus-window.blp
+msgid "Drag to resize the sidebar"
+msgstr "Перетащите, чтобы изменить ширину панели"
+
 #~ msgid "Wallpapers"
 #~ msgstr "Обои"
 

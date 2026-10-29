@@ -563,6 +563,26 @@ get_special_directory_uri (GUserDirectory directory)
     return g_filename_to_uri (name, NULL, NULL);
 }
 
+static char *
+get_bookmark_name_for_uri (NautilusSidebar *sidebar,
+                           const char      *uri)
+{
+    GList *bookmarks;
+
+    bookmarks = nautilus_bookmark_list_get_all (sidebar->bookmark_list);
+    for (GList *l = bookmarks; l != NULL; l = l->next)
+    {
+        g_autofree char *bookmark_uri = nautilus_bookmark_get_uri (l->data);
+
+        if (g_strcmp0 (bookmark_uri, uri) == 0)
+        {
+            return g_strdup (nautilus_bookmark_get_name (l->data));
+        }
+    }
+
+    return NULL;
+}
+
 static void
 add_special_dir_place (NautilusSidebar *sidebar,
                        GUserDirectory   directory,
@@ -571,6 +591,8 @@ add_special_dir_place (NautilusSidebar *sidebar,
                        const char      *tooltip)
 {
     GIcon *start_icon;
+    g_autofree char *bookmark_name = NULL;
+    const char *display_name;
     char *uri;
 
     uri = get_special_directory_uri (directory);
@@ -579,14 +601,57 @@ add_special_dir_place (NautilusSidebar *sidebar,
         return;
     }
 
+    /* Prefer the name from the existing bookmark: it is localized even when
+     * the newer sidebar strings are not installed yet. */
+    bookmark_name = get_bookmark_name_for_uri (sidebar, uri);
+    display_name = bookmark_name != NULL ? bookmark_name : name;
+
     start_icon = g_themed_icon_new_with_default_fallbacks (icon_name);
     add_place (sidebar, NAUTILUS_SIDEBAR_ROW_BUILT_IN,
                NAUTILUS_SIDEBAR_SECTION_ENTRY_POINTS,
-               name, start_icon, NULL, uri,
+               display_name, start_icon, NULL, uri,
                NULL, NULL, NULL, NULL, 0,
                tooltip);
     g_object_unref (start_icon);
     g_free (uri);
+}
+
+/* Bookmarks may point to the same folders that are already present as
+ * built-in entry points (for example, xdg-user-dirs creates bookmarks for
+ * Documents, Music, etc.). Skip those to avoid duplicate rows. */
+static gboolean
+bookmark_is_duplicate (GFile *location)
+{
+    static const GUserDirectory special_dirs[] = {
+        G_USER_DIRECTORY_DESKTOP,
+        G_USER_DIRECTORY_DOCUMENTS,
+        G_USER_DIRECTORY_DOWNLOAD,
+        G_USER_DIRECTORY_MUSIC,
+        G_USER_DIRECTORY_PICTURES,
+        G_USER_DIRECTORY_VIDEOS,
+    };
+    const char *home;
+    gboolean duplicate = FALSE;
+
+    home = g_get_home_dir ();
+    if (home != NULL)
+    {
+        g_autoptr (GFile) home_file = g_file_new_for_path (home);
+        duplicate = g_file_equal (location, home_file);
+    }
+
+    for (guint i = 0; !duplicate && i < G_N_ELEMENTS (special_dirs); i++)
+    {
+        const char *path = g_get_user_special_dir (special_dirs[i]);
+
+        if (path != NULL)
+        {
+            g_autoptr (GFile) dir_file = g_file_new_for_path (path);
+            duplicate = g_file_equal (location, dir_file);
+        }
+    }
+
+    return duplicate;
 }
 
 typedef struct
@@ -1062,6 +1127,12 @@ update_places (NautilusSidebar *sidebar)
 
         GFile *location = nautilus_bookmark_get_location (l->data);
         g_autofree char *mount_uri = nautilus_bookmark_get_uri (l->data);
+
+        if (bookmark_is_duplicate (location))
+        {
+            g_object_unref (location);
+            continue;
+        }
 
         gboolean is_native = g_file_is_native (location);
         tooltip = is_native ? g_file_get_path (location) : g_uri_unescape_string (mount_uri, NULL);
@@ -3517,6 +3588,101 @@ update_location (NautilusSidebar *self)
     nautilus_sidebar_set_location (self, location);
 }
 
+#define SIDEBAR_ZOOM_MIN  0.7
+#define SIDEBAR_ZOOM_MAX  2.0
+#define SIDEBAR_ZOOM_STEP 0.1
+
+/* Zoom is shared by all sidebar instances, so that every window shows the
+ * same row size. */
+static double sidebar_zoom_level = 1.0;
+static GtkCssProvider *sidebar_zoom_provider = NULL;
+static gboolean sidebar_zoom_provider_added = FALSE;
+
+static void
+update_sidebar_zoom_css (GtkWidget *widget)
+{
+    g_autofree char *font_name = NULL;
+    g_autofree char *css = NULL;
+    int base_size_pt = 11;
+    int row_height;
+    int icon_size;
+
+    g_object_get (gtk_widget_get_settings (widget), "gtk-font-name", &font_name, NULL);
+    if (font_name != NULL)
+    {
+        PangoFontDescription *description = pango_font_description_from_string (font_name);
+
+        if (description != NULL)
+        {
+            int size = pango_font_description_get_size (description);
+
+            if (size > 0 && !pango_font_description_get_size_is_absolute (description))
+            {
+                base_size_pt = MAX (1, size / PANGO_SCALE);
+            }
+
+            pango_font_description_free (description);
+        }
+    }
+
+    row_height = (int) (34 * sidebar_zoom_level);
+    icon_size = (int) (16 * sidebar_zoom_level);
+
+    css = g_strdup_printf (".navigation-sidebar.nautilus-sidebar-zoomable {"
+                           "  font-size: %.3fpt;"
+                           "}"
+                           ".navigation-sidebar.nautilus-sidebar-zoomable row {"
+                           "  min-height: %dpx;"
+                           "}"
+                           ".navigation-sidebar.nautilus-sidebar-zoomable image {"
+                           "  -gtk-icon-size: %dpx;"
+                           "}",
+                           base_size_pt * sidebar_zoom_level,
+                           row_height,
+                           icon_size);
+
+    if (sidebar_zoom_provider == NULL)
+    {
+        sidebar_zoom_provider = gtk_css_provider_new ();
+    }
+
+    gtk_css_provider_load_from_string (sidebar_zoom_provider, css);
+
+    if (!sidebar_zoom_provider_added)
+    {
+        gtk_style_context_add_provider_for_display (gtk_widget_get_display (widget),
+                                                    GTK_STYLE_PROVIDER (sidebar_zoom_provider),
+                                                    GTK_STYLE_PROVIDER_PRIORITY_APPLICATION + 1);
+        sidebar_zoom_provider_added = TRUE;
+    }
+}
+
+static gboolean
+on_sidebar_scroll (GtkEventControllerScroll *controller,
+                   double                    dx,
+                   double                    dy,
+                   NautilusSidebar          *sidebar)
+{
+    GdkModifierType state;
+
+    state = gtk_event_controller_get_current_event_state (GTK_EVENT_CONTROLLER (controller));
+    if (!(state & GDK_CONTROL_MASK) || dy == 0)
+    {
+        return GDK_EVENT_PROPAGATE;
+    }
+
+    double new_zoom = CLAMP (sidebar_zoom_level - dy * SIDEBAR_ZOOM_STEP,
+                             SIDEBAR_ZOOM_MIN,
+                             SIDEBAR_ZOOM_MAX);
+    if (new_zoom != sidebar_zoom_level)
+    {
+        sidebar_zoom_level = new_zoom;
+        update_sidebar_zoom_css (GTK_WIDGET (sidebar));
+    }
+
+    return GDK_EVENT_STOP;
+}
+
 static void
 nautilus_sidebar_init (NautilusSidebar *sidebar)
 {
@@ -3557,6 +3723,7 @@ nautilus_sidebar_init (NautilusSidebar *sidebar)
     /* list box */
     sidebar->list_box = gtk_list_box_new ();
     gtk_widget_add_css_class (sidebar->list_box, "navigation-sidebar");
+    gtk_widget_add_css_class (sidebar->list_box, "nautilus-sidebar-zoomable");
 
     gtk_list_box_set_header_func (GTK_LIST_BOX (sidebar->list_box),
                                   list_box_header_func, sidebar, NULL);
@@ -3573,6 +3740,12 @@ nautilus_sidebar_init (NautilusSidebar *sidebar)
     g_signal_connect (controller, "key-pressed",
                       G_CALLBACK (on_key_pressed), sidebar);
     gtk_widget_add_controller (sidebar->list_box, controller);
+
+    controller = gtk_event_controller_scroll_new (GTK_EVENT_CONTROLLER_SCROLL_VERTICAL |
+                                                  GTK_EVENT_CONTROLLER_SCROLL_DISCRETE);
+    gtk_event_controller_set_propagation_phase (controller, GTK_PHASE_CAPTURE);
+    g_signal_connect (controller, "scroll", G_CALLBACK (on_sidebar_scroll), sidebar);
+    gtk_widget_add_controller (GTK_WIDGET (sidebar), controller);
 
     gesture = gtk_gesture_long_press_new ();
     gtk_gesture_single_set_touch_only (GTK_GESTURE_SINGLE (gesture), TRUE);

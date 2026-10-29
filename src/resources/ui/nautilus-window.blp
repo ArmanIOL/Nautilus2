@@ -144,43 +144,56 @@ template $NautilusWindow: Adw.ApplicationWindow {
           enable-hide-gesture: false;
           sidebar-width-fraction: 0.2;
 
-          sidebar: Adw.ToolbarView {
-            reveal-bottom-bars: bind progress_indicator.reveal;
+          sidebar: Overlay {
+            child: Adw.ToolbarView {
+              reveal-bottom-bars: bind progress_indicator.reveal;
 
-            [top]
-            Adw.HeaderBar {
-              [start]
-              ToggleButton {
-                tooltip-text: _("Search Everywhere");
-                action-name: "slot.search-global";
-                icon-name: "edit-find-symbolic";
+              [top]
+              Adw.HeaderBar {
+                [start]
+                ToggleButton {
+                  tooltip-text: _("Search Everywhere");
+                  action-name: "slot.search-global";
+                  icon-name: "edit-find-symbolic";
+                }
+
+                title-widget: Adw.WindowTitle {
+                  title: _("Files");
+                };
+
+                [end]
+                MenuButton {
+                  tooltip-text: _("Main Menu");
+                  icon-name: "open-menu-symbolic";
+                  menu-model: app_menu;
+                }
               }
 
-              title-widget: Adw.WindowTitle {
-                title: _("Files");
+              [bottom]
+              Box {
+                styles [
+                  "toolbar",
+                ]
+
+                $NautilusProgressIndicator progress_indicator {}
+              }
+
+              content: $NautilusSidebar places_sidebar {
+                vexpand: true;
+                window-slot: bind template.active-slot;
               };
-
-              [end]
-              MenuButton {
-                tooltip-text: _("Main Menu");
-                icon-name: "open-menu-symbolic";
-                menu-model: app_menu;
-              }
-            }
-
-            [bottom]
-            Box {
-              styles [
-                "toolbar",
-              ]
-
-              $NautilusProgressIndicator progress_indicator {}
-            }
-
-            content: $NautilusSidebar places_sidebar {
-              vexpand: true;
-              window-slot: bind template.active-slot;
             };
+
+            [overlay]
+            Box sidebar_resize_handle {
+              halign: end;
+              width-request: 7;
+              vexpand: true;
+              tooltip-text: _("Drag to resize the sidebar");
+              styles [
+                "sidebar-resize-handle",
+              ]
+            }
           };
 
           content: Adw.ToolbarView {

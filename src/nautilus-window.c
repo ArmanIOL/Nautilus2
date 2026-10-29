@@ -78,6 +78,8 @@ struct _NautilusWindow
 
     /* Side Pane */
     NautilusSidebar *places_sidebar;
+    GtkWidget *sidebar_resize_handle;
+    int sidebar_resize_start_width;
 
     /* Notifications */
     AdwToastOverlay *toast_overlay;
@@ -668,6 +670,86 @@ nautilus_window_set_up_sidebar (NautilusWindow *window)
                       G_CALLBACK (places_sidebar_drag_perform_drop_cb), window);
 }
 
+#define SIDEBAR_MIN_WIDTH       120
+#define SIDEBAR_DEFAULT_MIN     180
+#define SIDEBAR_DEFAULT_MAX     280
+#define SIDEBAR_DEFAULT_FRACTION 0.2
+
+static void
+sidebar_resize_drag_begin (GtkGestureDrag *gesture,
+                           double          offset_x,
+                           double          offset_y,
+                           NautilusWindow *window)
+{
+    window->sidebar_resize_start_width = gtk_widget_get_width (GTK_WIDGET (window->places_sidebar));
+
+    g_object_set (window->split_view,
+                  "sidebar-width-unit", ADW_LENGTH_UNIT_PX,
+                  "min-sidebar-width", (double) window->sidebar_resize_start_width,
+                  "max-sidebar-width", (double) window->sidebar_resize_start_width,
+                  NULL);
+}
+
+static void
+sidebar_resize_drag_update (GtkGestureDrag *gesture,
+                            double          offset_x,
+                            double          offset_y,
+                            NautilusWindow *window)
+{
+    int max_width;
+    int width;
+
+    max_width = MAX (SIDEBAR_MIN_WIDTH, gtk_widget_get_width (GTK_WIDGET (window)) / 2);
+    width = CLAMP (window->sidebar_resize_start_width + (int) offset_x,
+                   SIDEBAR_MIN_WIDTH,
+                   max_width);
+
+    g_object_set (window->split_view,
+                  "min-sidebar-width", (double) width,
+                  "max-sidebar-width", (double) width,
+                  NULL);
+}
+
+static void
+sidebar_resize_click_released (GtkGestureClick *gesture,
+                               int              n_press,
+                               double           x,
+                               double           y,
+                               NautilusWindow  *window)
+{
+    if (n_press != 2)
+    {
+        return;
+    }
+
+    /* Restore the default width. */
+    g_object_set (window->split_view,
+                  "min-sidebar-width", (double) SIDEBAR_DEFAULT_MIN,
+                  "max-sidebar-width", (double) SIDEBAR_DEFAULT_MAX,
+                  "sidebar-width-unit", ADW_LENGTH_UNIT_SP,
+                  "sidebar-width-fraction", SIDEBAR_DEFAULT_FRACTION,
+                  "show-sidebar", TRUE,
+                  NULL);
+}
+
+static void
+nautilus_window_set_up_sidebar_resize (NautilusWindow *window)
+{
+    GtkGesture *gesture;
+
+    gtk_widget_set_cursor_from_name (window->sidebar_resize_handle, "ew-resize");
+
+    gesture = gtk_gesture_drag_new ();
+    g_signal_connect (gesture, "drag-begin", G_CALLBACK (sidebar_resize_drag_begin), window);
+    g_signal_connect (gesture, "drag-update", G_CALLBACK (sidebar_resize_drag_update), window);
+    gtk_widget_add_controller (window->sidebar_resize_handle, GTK_EVENT_CONTROLLER (gesture));
+
+    gesture = gtk_gesture_click_new ();
+    gtk_gesture_single_set_button (GTK_GESTURE_SINGLE (gesture), GDK_BUTTON_PRIMARY);
+    g_signal_connect (gesture, "released", G_CALLBACK (sidebar_resize_click_released), window);
+    gtk_widget_add_controller (window->sidebar_resize_handle, GTK_EVENT_CONTROLLER (gesture));
+}
+
 static void
 window_slot_close (NautilusWindow     *window,
                    NautilusWindowSlot *slot)
@@ -1194,6 +1276,7 @@ nautilus_window_constructed (GObject *self)
     notify_decoration_layout_cb (window);
 
     nautilus_window_set_up_sidebar (window);
+    nautilus_window_set_up_sidebar_resize (window);
 
 
     g_signal_connect_object (nautilus_file_undo_manager_get (), "undo-changed",
@@ -1622,6 +1705,7 @@ nautilus_window_class_init (NautilusWindowClass *class)
     gtk_widget_class_bind_template_child (wclass, NautilusWindow, toolbar);
     gtk_widget_class_bind_template_child (wclass, NautilusWindow, split_view);
     gtk_widget_class_bind_template_child (wclass, NautilusWindow, places_sidebar);
+    gtk_widget_class_bind_template_child (wclass, NautilusWindow, sidebar_resize_handle);
     gtk_widget_class_bind_template_child (wclass, NautilusWindow, toast_overlay);
     gtk_widget_class_bind_template_child (wclass, NautilusWindow, tab_overview);
     gtk_widget_class_bind_template_child (wclass, NautilusWindow, tab_view);
