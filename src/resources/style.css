@@ -401,17 +401,17 @@ rubberband {
 /* Volume usage indicator: white is free space, the accent color is used. */
 
 .sidebar-usage-bar > trough {
-  min-height: 3px;
+  min-height: 2px;
   background-color: #ffffff;
   border: none;
-  border-radius: 2px;
+  border-radius: 1px;
 }
 
 .sidebar-usage-bar > trough > progress {
-  min-height: 3px;
+  min-height: 2px;
   background-color: #3584e4;
   border: none;
-  border-radius: 2px;
+  border-radius: 1px;
 }
 
 .sidebar-usage-bar.accent-blue > trough > progress {
