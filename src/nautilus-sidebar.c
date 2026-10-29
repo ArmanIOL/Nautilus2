@@ -624,6 +624,34 @@ bookmark_is_duplicate (GFile *location)
     return duplicate;
 }
 
+/* Preferences added by this fork may not be installed yet (for example when
+ * running directly from the build directory). Fall back to the default value
+ * instead of letting GSettings warn about a missing key. */
+static gboolean
+get_sidebar_boolean_pref (const char *key)
+{
+    GSettingsSchemaSource *source;
+    GSettingsSchema *schema;
+    gboolean has_key;
+    gboolean value;
+
+    source = g_settings_schema_source_get_default ();
+    schema = source != NULL
+             ? g_settings_schema_source_lookup (source,
+                                                "org.gnome.nautilus.preferences",
+                                                TRUE)
+             : NULL;
+    has_key = schema != NULL && g_settings_schema_has_key (schema, key);
+    value = has_key ? g_settings_get_boolean (nautilus_preferences, key) : TRUE;
+
+    if (schema != NULL)
+    {
+        g_settings_schema_unref (schema);
+    }
+
+    return value;
+}
+
 static guint64
 get_row_volume_size (NautilusSidebarRow *row,
                      guint64             *free_space)
@@ -689,10 +717,8 @@ static void
 update_volume_labels (NautilusSidebar *sidebar)
 {
     int volume_number = 1;
-    gboolean show_sizes = g_settings_get_boolean (nautilus_preferences,
-                                                  NAUTILUS_PREFERENCES_SHOW_VOLUME_SIZES);
-    gboolean show_usage = g_settings_get_boolean (nautilus_preferences,
-                                                  NAUTILUS_PREFERENCES_SHOW_VOLUME_USAGE);
+    gboolean show_sizes = get_sidebar_boolean_pref (NAUTILUS_PREFERENCES_SHOW_VOLUME_SIZES);
+    gboolean show_usage = get_sidebar_boolean_pref (NAUTILUS_PREFERENCES_SHOW_VOLUME_USAGE);
 
     for (GtkWidget *child = gtk_widget_get_first_child (GTK_WIDGET (sidebar->list_box));
          child != NULL;
@@ -974,14 +1000,12 @@ add_block_device_places (NautilusSidebar *sidebar)
     const char *name;
     gboolean show_unmounted;
 
-    if (!g_settings_get_boolean (nautilus_preferences,
-                                 NAUTILUS_PREFERENCES_SHOW_SIDEBAR_VOLUMES))
+    if (!get_sidebar_boolean_pref (NAUTILUS_PREFERENCES_SHOW_SIDEBAR_VOLUMES))
     {
         return;
     }
 
-    show_unmounted = g_settings_get_boolean (nautilus_preferences,
-                                             NAUTILUS_PREFERENCES_SHOW_UNMOUNTED_VOLUMES);
+    show_unmounted = get_sidebar_boolean_pref (NAUTILUS_PREFERENCES_SHOW_UNMOUNTED_VOLUMES);
 
     dir = g_dir_open ("/sys/class/block", 0, NULL);
     if (dir == NULL)
@@ -1317,8 +1341,7 @@ update_places (NautilusSidebar *sidebar)
 
     /* Trash */
     if (sidebar->show_trash &&
-        g_settings_get_boolean (nautilus_preferences,
-                                NAUTILUS_PREFERENCES_SHOW_SIDEBAR_TRASH))
+        get_sidebar_boolean_pref (NAUTILUS_PREFERENCES_SHOW_SIDEBAR_TRASH))
     {
         start_icon = nautilus_trash_monitor_get_symbolic_icon ();
         sidebar->trash_row = add_place (sidebar, NAUTILUS_SIDEBAR_ROW_BUILT_IN,
@@ -1542,8 +1565,7 @@ update_places (NautilusSidebar *sidebar)
     g_object_unref (new_bookmark_icon);
 
     /* network */
-    if (g_settings_get_boolean (nautilus_preferences,
-                                NAUTILUS_PREFERENCES_SHOW_SIDEBAR_NETWORK))
+    if (get_sidebar_boolean_pref (NAUTILUS_PREFERENCES_SHOW_SIDEBAR_NETWORK))
     {
         start_icon = g_themed_icon_new_with_default_fallbacks (ICON_NAME_NETWORK_VIEW);
         add_place (sidebar, NAUTILUS_SIDEBAR_ROW_BUILT_IN,
@@ -1554,8 +1576,7 @@ update_places (NautilusSidebar *sidebar)
         g_object_unref (start_icon);
     }
 
-    if (g_settings_get_boolean (nautilus_preferences,
-                                NAUTILUS_PREFERENCES_SHOW_SIDEBAR_NETWORK))
+    if (get_sidebar_boolean_pref (NAUTILUS_PREFERENCES_SHOW_SIDEBAR_NETWORK))
     {
         network_volumes = g_list_reverse (network_volumes);
         for (l = network_volumes; l != NULL; l = l->next)

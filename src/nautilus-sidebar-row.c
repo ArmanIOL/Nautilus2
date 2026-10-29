@@ -455,6 +455,36 @@ nautilus_sidebar_row_set_property (GObject      *object,
     }
 }
 
+static char *
+get_usage_accent_override (void)
+{
+    GSettingsSchemaSource *source;
+    GSettingsSchema *schema;
+    gboolean has_key;
+    char *value;
+
+    source = g_settings_schema_source_get_default ();
+    schema = source != NULL
+             ? g_settings_schema_source_lookup (source,
+                                                "org.gnome.nautilus.preferences",
+                                                TRUE)
+             : NULL;
+    has_key = schema != NULL &&
+              g_settings_schema_has_key (schema,
+                                         NAUTILUS_PREFERENCES_SIDEBAR_USAGE_ACCENT);
+    value = has_key
+            ? g_settings_get_string (nautilus_preferences,
+                                     NAUTILUS_PREFERENCES_SIDEBAR_USAGE_ACCENT)
+            : g_strdup ("system");
+
+    if (schema != NULL)
+    {
+        g_settings_schema_unref (schema);
+    }
+
+    return value;
+}
+
 static void
 update_usage_accent (NautilusSidebarRow *self)
 {
@@ -473,8 +503,7 @@ update_usage_accent (NautilusSidebarRow *self)
     }
 
     system_accent = g_settings_get_string (self->interface_settings, "accent-color");
-    override = g_settings_get_string (nautilus_preferences,
-                                      NAUTILUS_PREFERENCES_SIDEBAR_USAGE_ACCENT);
+    override = get_usage_accent_override ();
     accent = g_strcmp0 (override, "system") == 0 ? system_accent : override;
 
     for (guint i = 0; i < G_N_ELEMENTS (accents); i++)
