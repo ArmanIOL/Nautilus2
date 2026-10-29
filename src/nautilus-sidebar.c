@@ -1308,26 +1308,6 @@ update_places (NautilusSidebar *sidebar)
      * inserted, so that the order matches what is displayed. */
     update_volume_labels (sidebar);
 
-    for (GtkWidget *c = gtk_widget_get_first_child (GTK_WIDGET (sidebar->list_box)); c; c = gtk_widget_get_next_sibling (c))
-    {
-        if (NAUTILUS_IS_SIDEBAR_ROW (c))
-        {
-            g_autofree char *lbl = NULL;
-            g_object_get (c, "label", &lbl, NULL);
-            g_printerr ("SIDEBAR-FINAL: %s\n", lbl);
-        }
-    }
-
-    for (GtkWidget *c = gtk_widget_get_first_child (GTK_WIDGET (sidebar->list_box)); c; c = gtk_widget_get_next_sibling (c))
-    {
-        if (NAUTILUS_IS_SIDEBAR_ROW (c))
-        {
-            g_autofree char *lbl = NULL;
-            g_object_get (c, "label", &lbl, NULL);
-            g_printerr ("SIDEBAR-FINAL: %s\n", lbl);
-        }
-    }
-
     /* restore original selection */
     if (original_uri)
     {
