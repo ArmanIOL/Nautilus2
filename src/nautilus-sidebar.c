@@ -544,45 +544,6 @@ get_home_directory_uri (void)
     return g_filename_to_uri (home, NULL, NULL);
 }
 
-static char *
-get_special_directory_uri (GUserDirectory directory)
-{
-    const char *name;
-
-    name = g_get_user_special_dir (directory);
-
-    /* "To disable a directory, point it to the homedir."
-     * See http://freedesktop.org/wiki/Software/xdg-user-dirs
-     */
-    if (name == NULL ||
-        path_is_home_dir (name))
-    {
-        return NULL;
-    }
-
-    return g_filename_to_uri (name, NULL, NULL);
-}
-
-static char *
-get_bookmark_name_for_uri (NautilusSidebar *sidebar,
-                           const char      *uri)
-{
-    GList *bookmarks;
-
-    bookmarks = nautilus_bookmark_list_get_all (sidebar->bookmark_list);
-    for (GList *l = bookmarks; l != NULL; l = l->next)
-    {
-        g_autofree char *bookmark_uri = nautilus_bookmark_get_uri (l->data);
-
-        if (g_strcmp0 (bookmark_uri, uri) == 0)
-        {
-            return g_strdup (nautilus_bookmark_get_name (l->data));
-        }
-    }
-
-    return NULL;
-}
-
 static void
 add_special_dir_place (NautilusSidebar *sidebar,
                        GUserDirectory   directory,
@@ -591,20 +552,27 @@ add_special_dir_place (NautilusSidebar *sidebar,
                        const char      *tooltip)
 {
     GIcon *start_icon;
-    g_autofree char *bookmark_name = NULL;
+    g_autofree char *basename = NULL;
     const char *display_name;
+    const char *path;
     char *uri;
 
-    uri = get_special_directory_uri (directory);
+    path = g_get_user_special_dir (directory);
+    if (path == NULL || path_is_home_dir (path))
+    {
+        return;
+    }
+
+    uri = g_filename_to_uri (path, NULL, NULL);
     if (uri == NULL)
     {
         return;
     }
 
-    /* Prefer the name from the existing bookmark: it is localized even when
-     * the newer sidebar strings are not installed yet. */
-    bookmark_name = get_bookmark_name_for_uri (sidebar, uri);
-    display_name = bookmark_name != NULL ? bookmark_name : name;
+    /* Use the real folder name: it is already localized by xdg-user-dirs and
+     * avoids showing an English label next to a translated bookmark. */
+    basename = g_path_get_basename (path);
+    display_name = (basename != NULL && *basename != '\0') ? basename : name;
 
     start_icon = g_themed_icon_new_with_default_fallbacks (icon_name);
     add_place (sidebar, NAUTILUS_SIDEBAR_ROW_BUILT_IN,
@@ -1126,11 +1094,17 @@ update_places (NautilusSidebar *sidebar)
         GtkWidget *row;
 
         GFile *location = nautilus_bookmark_get_location (l->data);
-        g_autofree char *mount_uri = nautilus_bookmark_get_uri (l->data);
+        g_autofree char *mount_uri = NULL;
+
+        if (location == NULL)
+        {
+            continue;
+        }
+
+        mount_uri = g_file_get_uri (location);
 
         if (bookmark_is_duplicate (location))
         {
-            g_object_unref (location);
             continue;
         }
 
