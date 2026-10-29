@@ -7175,6 +7175,14 @@ msgstr "Том %d — %s"
 msgid "Volume %d"
 msgstr "Том %d"
 
+#: src/nautilus-sidebar.c
+msgid "%s of %s used"
+msgstr "Занято %s из %s"
+
+#: src/nautilus-sidebar.c
+msgid "Disk usage is available after mounting"
+msgstr "Занятое место станет известно после монтирования"
+
 #~ msgid "Wallpapers"
 #~ msgstr "Обои"
 

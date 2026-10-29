@@ -625,13 +625,16 @@ bookmark_is_duplicate (GFile *location)
 }
 
 static guint64
-get_row_volume_size (NautilusSidebarRow *row)
+get_row_volume_size (NautilusSidebarRow *row,
+                     guint64             *free_space)
 {
     g_autoptr (GVolume) volume = NULL;
     g_autoptr (GMount) mount = NULL;
     g_autoptr (GFile) root = NULL;
     g_autofree char *uri = NULL;
     guint64 size = 0;
+
+    *free_space = G_MAXUINT64;
 
     g_object_get (row, "volume", &volume, "mount", &mount, "uri", &uri, NULL);
 
@@ -647,11 +650,13 @@ get_row_volume_size (NautilusSidebarRow *row)
     if (root != NULL)
     {
         g_autoptr (GFileInfo) info = g_file_query_filesystem_info (root,
-                                                                   G_FILE_ATTRIBUTE_FILESYSTEM_SIZE,
+                                                                   G_FILE_ATTRIBUTE_FILESYSTEM_SIZE ","
+                                                                   G_FILE_ATTRIBUTE_FILESYSTEM_FREE,
                                                                    NULL, NULL);
         if (info != NULL)
         {
             size = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_FILESYSTEM_SIZE);
+            *free_space = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_FILESYSTEM_FREE);
         }
     }
 
@@ -694,6 +699,7 @@ update_volume_labels (NautilusSidebar *sidebar)
         g_autofree char *size_text = NULL;
         g_autofree char *new_label = NULL;
         guint64 size;
+        guint64 free_space;
 
         if (!NAUTILUS_IS_SIDEBAR_ROW (child))
         {
@@ -708,7 +714,7 @@ update_volume_labels (NautilusSidebar *sidebar)
             continue;
         }
 
-        size = get_row_volume_size (row);
+        size = get_row_volume_size (row, &free_space);
         if (size == 0)
         {
             /* Unmounted block devices are described by their sysfs size, which
@@ -735,6 +741,30 @@ update_volume_labels (NautilusSidebar *sidebar)
         }
 
         g_object_set (row, "label", new_label, NULL);
+
+        if (size > 0 && free_space != G_MAXUINT64 && free_space <= size)
+        {
+            g_autofree char *free_text = g_format_size (free_space);
+            g_autofree char *used_text = g_format_size (size - free_space);
+            g_autofree char *usage_tooltip = g_strdup_printf (_("%s of %s used"),
+                                                              used_text, size_text);
+
+            nautilus_sidebar_row_set_usage (row,
+                                            (gdouble) (size - free_space) / (gdouble) size,
+                                            usage_tooltip);
+        }
+        else if (size > 0)
+        {
+            /* The used space of an unmounted filesystem cannot be read
+             * without mounting it, so only the free (white) part is shown. */
+            nautilus_sidebar_row_set_usage (row, 0.0,
+                                            _("Disk usage is available after mounting"));
+        }
+        else
+        {
+            nautilus_sidebar_row_set_usage (row, -1, NULL);
+        }
+
         volume_number++;
     }
 }

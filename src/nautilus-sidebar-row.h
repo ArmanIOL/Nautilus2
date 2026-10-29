@@ -30,5 +30,8 @@ void           nautilus_sidebar_row_set_start_icon   (NautilusSidebarRow *self,
                                                  GIcon         *icon);
 void           nautilus_sidebar_row_set_busy         (NautilusSidebarRow *row,
                                                  gboolean       is_busy);
+void           nautilus_sidebar_row_set_usage        (NautilusSidebarRow *row,
+                                                 gdouble        fraction,
+                                                 const char    *tooltip);
 
 G_END_DECLS

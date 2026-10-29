@@ -6,6 +6,7 @@
 #include "nautilus-sidebar-row.h"
 
 #include "config.h"
+#include <gio/gio.h>
 #include <gtk/gtk.h>
 #include "nautilus-enum-types.h"
 #include "nautilus-file.h"
@@ -42,6 +43,8 @@ struct _NautilusSidebarRow
     NautilusSidebar *sidebar;
     GtkWidget *revealer;
     GtkWidget *busy_spinner;
+    GtkWidget *usage_bar;
+    GSettings *interface_settings;
 };
 
 G_DEFINE_FINAL_TYPE (NautilusSidebarRow, nautilus_sidebar_row, GTK_TYPE_LIST_BOX_ROW)
@@ -452,6 +455,34 @@ nautilus_sidebar_row_set_property (GObject      *object,
 }
 
 static void
+update_usage_accent (NautilusSidebarRow *self)
+{
+    static const char *accents[] = {
+        "blue", "teal", "green", "yellow", "orange",
+        "red", "pink", "purple", "slate",
+    };
+    g_autofree char *accent = NULL;
+    g_autofree char *css_class = NULL;
+
+    if (self->interface_settings == NULL)
+    {
+        return;
+    }
+
+    accent = g_settings_get_string (self->interface_settings, "accent-color");
+
+    for (guint i = 0; i < G_N_ELEMENTS (accents); i++)
+    {
+        g_autofree char *name = g_strdup_printf ("accent-%s", accents[i]);
+
+        gtk_widget_remove_css_class (self->usage_bar, name);
+    }
+
+    css_class = g_strdup_printf ("accent-%s", accent);
+    gtk_widget_add_css_class (self->usage_bar, css_class);
+}
+
+static void
 on_child_revealed (GObject    *self,
                    GParamSpec *pspec,
                    gpointer    user_data)
@@ -547,6 +578,7 @@ nautilus_sidebar_row_finalize (GObject *object)
     g_clear_object (&self->drive);
     g_clear_object (&self->volume);
     g_clear_object (&self->mount);
+    g_clear_object (&self->interface_settings);
 #ifdef HAVE_CLOUDPROVIDERS
     if (self->cloud_provider_account != NULL)
     {
@@ -561,11 +593,35 @@ nautilus_sidebar_row_finalize (GObject *object)
 static void
 nautilus_sidebar_row_init (NautilusSidebarRow *self)
 {
+    GSettingsSchemaSource *source;
+    GSettingsSchema *schema;
+
     gtk_widget_init_template (GTK_WIDGET (self));
 
     gtk_widget_set_focus_on_click (GTK_WIDGET (self), FALSE);
 
     self->file = NULL;
+
+    source = g_settings_schema_source_get_default ();
+    schema = source != NULL
+             ? g_settings_schema_source_lookup (source,
+                                                "org.gnome.desktop.interface",
+                                                TRUE)
+             : NULL;
+
+    if (schema != NULL)
+    {
+        if (g_settings_schema_has_key (schema, "accent-color"))
+        {
+            self->interface_settings = g_settings_new_full (schema, NULL, NULL);
+            g_signal_connect_object (self->interface_settings, "changed::accent-color",
+                                     G_CALLBACK (update_usage_accent), self,
+                                     G_CONNECT_SWAPPED);
+            update_usage_accent (self);
+        }
+
+        g_settings_schema_unref (schema);
+    }
 }
 
 static void
@@ -727,6 +783,7 @@ nautilus_sidebar_row_class_init (NautilusSidebarRowClass *klass)
     gtk_widget_class_bind_template_child (widget_class, NautilusSidebarRow, eject_button);
     gtk_widget_class_bind_template_child (widget_class, NautilusSidebarRow, revealer);
     gtk_widget_class_bind_template_child (widget_class, NautilusSidebarRow, busy_spinner);
+    gtk_widget_class_bind_template_child (widget_class, NautilusSidebarRow, usage_bar);
 
     gtk_widget_class_bind_template_callback (widget_class, on_child_revealed);
     gtk_widget_class_set_css_name (widget_class, "row");
@@ -782,4 +839,23 @@ nautilus_sidebar_row_set_busy (NautilusSidebarRow *row,
     g_return_if_fail (NAUTILUS_IS_SIDEBAR_ROW (row));
 
     gtk_widget_set_visible (row->busy_spinner, is_busy);
+}
+
+void
+nautilus_sidebar_row_set_usage (NautilusSidebarRow *row,
+                                gdouble             fraction,
+                                const char         *tooltip)
+{
+    g_return_if_fail (NAUTILUS_IS_SIDEBAR_ROW (row));
+
+    if (fraction < 0)
+    {
+        gtk_widget_set_visible (row->usage_bar, FALSE);
+        return;
+    }
+
+    gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (row->usage_bar),
+                                   CLAMP (fraction, 0.0, 1.0));
+    gtk_widget_set_tooltip_text (row->usage_bar, tooltip);
+    gtk_widget_set_visible (row->usage_bar, TRUE);
 }

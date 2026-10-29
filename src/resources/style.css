@@ -398,6 +398,58 @@ rubberband {
   opacity: 0.55;
 }
 
+/* Volume usage indicator: white is free space, the accent color is used. */
+
+.sidebar-usage-bar > trough {
+  min-height: 3px;
+  background-color: #ffffff;
+  border: none;
+  border-radius: 2px;
+}
+
+.sidebar-usage-bar > trough > progress {
+  min-height: 3px;
+  background-color: #3584e4;
+  border: none;
+  border-radius: 2px;
+}
+
+.sidebar-usage-bar.accent-blue > trough > progress {
+  background-color: #3584e4;
+}
+
+.sidebar-usage-bar.accent-teal > trough > progress {
+  background-color: #2190a4;
+}
+
+.sidebar-usage-bar.accent-green > trough > progress {
+  background-color: #3a944a;
+}
+
+.sidebar-usage-bar.accent-yellow > trough > progress {
+  background-color: #e5a50a;
+}
+
+.sidebar-usage-bar.accent-orange > trough > progress {
+  background-color: #ed5b00;
+}
+
+.sidebar-usage-bar.accent-red > trough > progress {
+  background-color: #e62d42;
+}
+
+.sidebar-usage-bar.accent-pink > trough > progress {
+  background-color: #d56199;
+}
+
+.sidebar-usage-bar.accent-purple > trough > progress {
+  background-color: #9141ac;
+}
+
+.sidebar-usage-bar.accent-slate > trough > progress {
+  background-color: #6f8396;
+}
+
 /* Sidebar resize handle */
 
 .sidebar-resize-handle {
