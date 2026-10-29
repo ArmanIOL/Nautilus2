@@ -11,7 +11,7 @@
 #include "nautilus-file.h"
 #include "nautilus-image.h"
 
-#define PREVIEW_IMAGE_SIZE 256
+#define PREVIEW_IMAGE_SIZE 192
 
 struct _NautilusPreviewPanel
 {
@@ -66,10 +66,10 @@ nautilus_preview_panel_init (NautilusPreviewPanel *self)
     GtkWidget *picture_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 12);
     GtkWidget *grid = gtk_grid_new ();
 
-    gtk_widget_set_margin_top (box, 18);
-    gtk_widget_set_margin_bottom (box, 18);
-    gtk_widget_set_margin_start (box, 18);
-    gtk_widget_set_margin_end (box, 18);
+    gtk_widget_set_margin_top (box, 12);
+    gtk_widget_set_margin_bottom (box, 12);
+    gtk_widget_set_margin_start (box, 12);
+    gtk_widget_set_margin_end (box, 12);
 
     gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrolled),
                                     GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
