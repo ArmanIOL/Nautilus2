@@ -121,6 +121,7 @@ typedef enum
 #define NAUTILUS_PREFERENCES_TOOLTIP_DATE_ACCESSED "tooltip-date-accessed"
 #define NAUTILUS_PREFERENCES_TOOLTIP_DATE_CREATED "tooltip-date-created"
 #define NAUTILUS_PREFERENCES_TERMINAL_COMMAND "terminal-command"
+#define NAUTILUS_PREFERENCES_HIDDEN_ENTRY_POINTS "hidden-entry-points"
 #define NAUTILUS_PREFERENCES_UI_SIDEBAR_POSITION "ui-sidebar-position"
 #define NAUTILUS_PREFERENCES_UI_PREVIEW_PANEL_POSITION "ui-preview-panel-position"
 #define NAUTILUS_PREFERENCES_UI_PREVIEW_PANEL_WIDTH "ui-preview-panel-width"
@@ -167,6 +168,10 @@ gint nautilus_preferences_get_int (const char *key,
                                    gint        fallback);
 gchar *nautilus_preferences_get_string (const char *key,
                                         const char *fallback);
+gchar **nautilus_preferences_get_hidden_entry_points (void);
+gboolean nautilus_preferences_is_entry_point_hidden (const char *uri);
+void nautilus_preferences_set_entry_point_hidden (const char *uri,
+                                                  gboolean    hidden);
 
 extern GSettings *nautilus_preferences;
 extern GSettings *nautilus_compression_preferences;

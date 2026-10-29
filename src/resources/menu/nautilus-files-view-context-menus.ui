@@ -171,6 +171,16 @@
         <attribute name="action">view.compress</attribute>
         <attribute name="hidden-when">action-disabled</attribute>
       </item>
+      <item>
+        <attribute name="label" translatable="yes">_Add to Entry Points</attribute>
+        <attribute name="action">view.add-to-entry-points</attribute>
+        <attribute name="hidden-when">action-disabled</attribute>
+      </item>
+      <item>
+        <attribute name="label" translatable="yes">_Remove from Entry Points</attribute>
+        <attribute name="action">view.remove-from-entry-points</attribute>
+        <attribute name="hidden-when">action-disabled</attribute>
+      </item>
     </section>
     <section id="blackbox-selection-section"/>
     <section>

@@ -27,6 +27,7 @@
 #include "nautilus-application.h"
 #include "nautilus-app-chooser.h"
 #include "nautilus-batch-rename-dialog.h"
+#include "nautilus-bookmark-list.h"
 #include "nautilus-clipboard.h"
 #include "nautilus-compress-dialog.h"
 #include "nautilus-dbus-launcher.h"
@@ -1621,6 +1622,69 @@ action_delete (GSimpleAction *action,
                gpointer       user_data)
 {
     delete_selected_files (NAUTILUS_FILES_VIEW (user_data));
+}
+
+static gboolean
+selection_is_all_directories (GList *selection)
+{
+    if (selection == NULL)
+    {
+        return FALSE;
+    }
+
+    for (GList *l = selection; l != NULL; l = l->next)
+    {
+        if (!nautilus_file_is_directory (NAUTILUS_FILE (l->data)))
+        {
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
+static void
+action_add_to_entry_points (GSimpleAction *action,
+                            GVariant      *state,
+                            gpointer       user_data)
+{
+    NautilusFilesView *self = NAUTILUS_FILES_VIEW (user_data);
+    NautilusApplication *app = NAUTILUS_APPLICATION (g_application_get_default ());
+    NautilusBookmarkList *bookmarks = nautilus_application_get_bookmarks (app);
+    g_autolist (NautilusFile) selection = nautilus_files_view_get_selection (self);
+
+    for (GList *l = selection; l != NULL; l = l->next)
+    {
+        g_autoptr (GFile) location = nautilus_file_get_location (l->data);
+
+        if (location != NULL &&
+            nautilus_bookmark_list_can_bookmark (bookmarks, location))
+        {
+            nautilus_bookmark_list_add (bookmarks, location, -1);
+        }
+    }
+}
+
+static void
+action_remove_from_entry_points (GSimpleAction *action,
+                                 GVariant      *state,
+                                 gpointer       user_data)
+{
+    NautilusFilesView *self = NAUTILUS_FILES_VIEW (user_data);
+    NautilusApplication *app = NAUTILUS_APPLICATION (g_application_get_default ());
+    NautilusBookmarkList *bookmarks = nautilus_application_get_bookmarks (app);
+    g_autolist (NautilusFile) selection = nautilus_files_view_get_selection (self);
+
+    for (GList *l = selection; l != NULL; l = l->next)
+    {
+        g_autoptr (GFile) location = nautilus_file_get_location (l->data);
+
+        if (location != NULL &&
+            nautilus_bookmark_list_contains (bookmarks, location))
+        {
+            nautilus_bookmark_list_remove (bookmarks, location);
+        }
+    }
 }
 
 static void
@@ -6930,6 +6994,8 @@ static const GActionEntry view_entries[] =
     { .name = "extract-here", .activate = action_extract_here },
     { .name = "extract-to", .activate = action_extract_to },
     { .name = "compress", .activate = action_compress },
+    { .name = "add-to-entry-points", .activate = action_add_to_entry_points },
+    { .name = "remove-from-entry-points", .activate = action_remove_from_entry_points },
     { .name = "send-email", .activate = action_send_email },
     { .name = "console", .activate = action_open_console },
     { .name = "current-directory-console", .activate = action_current_dir_open_console },
@@ -7324,6 +7390,9 @@ nautilus_files_view_update_actions_state (NautilusFilesView *self)
     gboolean show_star;
     gboolean show_unstar;
     g_autoptr (GAppInfo) app_info_mailto = NULL;
+    gboolean can_add_entry_points;
+    gboolean can_remove_entry_points;
+    NautilusBookmarkList *bookmarks;
 
     view_action_group = self->view_action_group;
 
@@ -7398,6 +7467,30 @@ nautilus_files_view_update_actions_state (NautilusFilesView *self)
     files_action_set_enabled (self, "compress",
                               mode == NAUTILUS_MODE_BROWSE &&
                               can_create_files && can_copy_files);
+
+    bookmarks = nautilus_application_get_bookmarks (NAUTILUS_APPLICATION (g_application_get_default ()));
+    can_add_entry_points = mode == NAUTILUS_MODE_BROWSE &&
+                           !is_network_view &&
+                           selection_is_all_directories (selection);
+    can_remove_entry_points = can_add_entry_points;
+
+    for (l = selection; l != NULL && (can_add_entry_points || can_remove_entry_points); l = l->next)
+    {
+        g_autoptr (GFile) location = nautilus_file_get_location (l->data);
+
+        if (location == NULL)
+        {
+            can_add_entry_points = FALSE;
+            can_remove_entry_points = FALSE;
+            break;
+        }
+
+        can_add_entry_points &= nautilus_bookmark_list_can_bookmark (bookmarks, location);
+        can_remove_entry_points &= nautilus_bookmark_list_contains (bookmarks, location);
+    }
+
+    files_action_set_enabled (self, "add-to-entry-points", can_add_entry_points);
+    files_action_set_enabled (self, "remove-from-entry-points", can_remove_entry_points);
 
     files_action_set_enabled (self, "open-item-location",
                               list_len_is_one (selection) &&

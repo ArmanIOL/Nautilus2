@@ -443,6 +443,16 @@ add_place (NautilusSidebar           *sidebar,
     GtkGesture *gesture;
     char *eject_tooltip;
 
+    /* Built-in entry points can be hidden by the user. Hidden items are
+     * restored from the preferences dialog. */
+    if (place_type == NAUTILUS_SIDEBAR_ROW_BUILT_IN &&
+        section_type == NAUTILUS_SIDEBAR_SECTION_ENTRY_POINTS &&
+        uri != NULL &&
+        nautilus_preferences_is_entry_point_hidden (uri))
+    {
+        return NULL;
+    }
+
     check_unmount_and_eject (mount, volume, drive,
                              &show_unmount, &show_eject);
 
@@ -1349,8 +1359,11 @@ update_places (NautilusSidebar *sidebar)
                                         _("Trash"), start_icon, NULL, SCHEME_TRASH ":///",
                                         NULL, NULL, NULL, NULL, 0,
                                         _("Open Trash"));
-        g_object_add_weak_pointer (G_OBJECT (sidebar->trash_row),
-                                   (gpointer *) &sidebar->trash_row);
+        if (sidebar->trash_row != NULL)
+        {
+            g_object_add_weak_pointer (G_OBJECT (sidebar->trash_row),
+                                       (gpointer *) &sidebar->trash_row);
+        }
         g_object_unref (start_icon);
     }
 
@@ -2771,6 +2784,18 @@ remove_shortcut_cb (GSimpleAction *action,
 }
 
 static void
+hide_entry_point_cb (GSimpleAction *action,
+                     GVariant      *parameter,
+                     gpointer       data)
+{
+    NautilusSidebar *sidebar = data;
+    g_autofree char *uri = NULL;
+
+    g_object_get (sidebar->context_row, "uri", &uri, NULL);
+    nautilus_preferences_set_entry_point_hidden (uri, TRUE);
+}
+
+static void
 mount_shortcut_cb (GSimpleAction *action,
                    GVariant      *parameter,
                    gpointer       data)
@@ -3271,6 +3296,7 @@ static GActionEntry entries[] =
     { .name = "open", .activate = open_shortcut_cb, .parameter_type = "i"},
     { .name = "open-other", .activate = open_shortcut_cb, .parameter_type = "i"},
     { .name = "remove", .activate = remove_shortcut_cb},
+    { .name = "hide-entry-point", .activate = hide_entry_point_cb},
     { .name = "rename", .activate = rename_shortcut_cb},
     { .name = "mount", .activate = mount_shortcut_cb},
     { .name = "unmount", .activate = unmount_shortcut_cb},
@@ -3396,6 +3422,7 @@ create_row_popover (NautilusSidebar    *sidebar,
                     NautilusSidebarRow *row)
 {
     NautilusSidebarRowType type;
+    NautilusSidebarSectionType section_type;
     GMenu *menu, *section;
     GMenuItem *item;
     g_autoptr (GMount) mount = NULL;
@@ -3414,6 +3441,7 @@ create_row_popover (NautilusSidebar    *sidebar,
 
     g_object_get (row,
                   "place-type", &type,
+                  "section-type", &section_type,
                   "drive", &drive,
                   "volume", &volume,
                   "mount", &mount,
@@ -3490,6 +3518,15 @@ create_row_popover (NautilusSidebar    *sidebar,
     g_menu_item_set_attribute (item, "hidden-when", "s", "action-disabled");
     g_menu_append_item (section, item);
     g_object_unref (item);
+
+    if (type == NAUTILUS_SIDEBAR_ROW_BUILT_IN &&
+        section_type == NAUTILUS_SIDEBAR_SECTION_ENTRY_POINTS &&
+        uri != NULL)
+    {
+        item = g_menu_item_new (_("_Hide from Entry Points"), "row.hide-entry-point");
+        g_menu_append_item (section, item);
+        g_object_unref (item);
+    }
 
     g_menu_append_section (menu, NULL, G_MENU_MODEL (section));
     g_object_unref (section);

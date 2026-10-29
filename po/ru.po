@@ -7531,6 +7531,34 @@ msgstr "Справа"
 msgid "Open in BlackBox"
 msgstr "Открыть в BlackBox"
 
+#: src/resources/menu/nautilus-files-view-context-menus.ui
+msgid "_Add to Entry Points"
+msgstr "_Добавить в точки входа"
+
+#: src/resources/menu/nautilus-files-view-context-menus.ui
+msgid "_Remove from Entry Points"
+msgstr "_Удалить из точек входа"
+
+#: src/nautilus-sidebar.c
+msgid "_Hide from Entry Points"
+msgstr "_Скрыть из точек входа"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Hidden Entry Points"
+msgstr "Скрытые точки входа"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Entry points hidden from the sidebar. Use the button to show them again."
+msgstr "Точки входа, скрытые с боковой панели. Используйте кнопку, чтобы показать их снова."
+
+#: src/nautilus-preferences-dialog.c
+msgid "No hidden entry points"
+msgstr "Нет скрытых точек входа"
+
+#: src/nautilus-preferences-dialog.c
+msgid "Show Again"
+msgstr "Показать снова"
+
 #~ msgid "Wallpapers"
 #~ msgstr "Обои"
 

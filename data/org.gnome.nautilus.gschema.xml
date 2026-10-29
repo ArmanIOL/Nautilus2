@@ -238,6 +238,11 @@
       <summary>Enable interface animations</summary>
       <description>If set to true, the interface uses animated transitions.</description>
     </key>
+    <key type="as" name="hidden-entry-points">
+      <default>[]</default>
+      <summary>Hidden entry points</summary>
+      <description>List of entry point URIs that are hidden from the sidebar. Entry points can be restored from the preferences dialog.</description>
+    </key>
     <key type="s" name="terminal-command">
       <default>''</default>
       <summary>Terminal command used by the context menu</summary>

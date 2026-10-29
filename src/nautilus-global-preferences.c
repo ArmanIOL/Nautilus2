@@ -219,6 +219,106 @@ nautilus_preferences_get_string (const char *key,
     return value;
 }
 
+static gboolean
+hidden_entry_points_key_available (void)
+{
+    GSettingsSchemaSource *source;
+    GSettingsSchema *schema;
+    gboolean has_key;
+
+    source = g_settings_schema_source_get_default ();
+    schema = source != NULL
+             ? g_settings_schema_source_lookup (source,
+                                                "org.gnome.nautilus.preferences",
+                                                TRUE)
+             : NULL;
+    has_key = schema != NULL && g_settings_schema_has_key (schema,
+                                                           NAUTILUS_PREFERENCES_HIDDEN_ENTRY_POINTS);
+
+    if (schema != NULL)
+    {
+        g_settings_schema_unref (schema);
+    }
+
+    return has_key;
+}
+
+gchar **
+nautilus_preferences_get_hidden_entry_points (void)
+{
+    if (!hidden_entry_points_key_available ())
+    {
+        return g_new0 (gchar *, 1);
+    }
+
+    return g_settings_get_strv (nautilus_preferences,
+                                NAUTILUS_PREFERENCES_HIDDEN_ENTRY_POINTS);
+}
+
+gboolean
+nautilus_preferences_is_entry_point_hidden (const char *uri)
+{
+    g_auto (GStrv) hidden = NULL;
+    gboolean found = FALSE;
+
+    if (uri == NULL)
+    {
+        return FALSE;
+    }
+
+    hidden = nautilus_preferences_get_hidden_entry_points ();
+    for (guint i = 0; !found && hidden[i] != NULL; i++)
+    {
+        found = g_strcmp0 (hidden[i], uri) == 0;
+    }
+
+    return found;
+}
+
+void
+nautilus_preferences_set_entry_point_hidden (const char *uri,
+                                             gboolean    hidden)
+{
+    g_auto (GStrv) current = NULL;
+    g_autoptr (GStrvBuilder) builder = g_strv_builder_new ();
+    gboolean changed = FALSE;
+
+    if (uri == NULL || !hidden_entry_points_key_available ())
+    {
+        return;
+    }
+
+    current = nautilus_preferences_get_hidden_entry_points ();
+
+    for (guint i = 0; current[i] != NULL; i++)
+    {
+        if (g_strcmp0 (current[i], uri) == 0)
+        {
+            changed |= !hidden;
+            continue;
+        }
+
+        g_strv_builder_add (builder, current[i]);
+    }
+
+    if (hidden)
+    {
+        changed |= !nautilus_preferences_is_entry_point_hidden (uri);
+        g_strv_builder_add (builder, uri);
+    }
+
+    if (!changed)
+    {
+        return;
+    }
+
+    g_auto (GStrv) next = g_strv_builder_end (builder);
+
+    g_settings_set_strv (nautilus_preferences,
+                         NAUTILUS_PREFERENCES_HIDDEN_ENTRY_POINTS,
+                         (const char * const *) next);
+}
+
 guint
 nautilus_global_preferences_get_back_button (void)
 {

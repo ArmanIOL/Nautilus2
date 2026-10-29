@@ -715,6 +715,23 @@ nautilus_bookmark_list_can_bookmark (NautilusBookmarkList *list,
         return FALSE;
     }
 
+    /* XDG user directories are built-in entry points and should not be
+     * duplicated as user bookmarks. */
+    for (guint i = G_USER_DIRECTORY_DESKTOP; i <= G_USER_DIRECTORY_VIDEOS; i++)
+    {
+        const char *path = g_get_user_special_dir (i);
+
+        if (path != NULL)
+        {
+            g_autoptr (GFile) dir_file = g_file_new_for_path (path);
+
+            if (g_file_equal (location, dir_file))
+            {
+                return FALSE;
+            }
+        }
+    }
+
     return TRUE;
 }
 

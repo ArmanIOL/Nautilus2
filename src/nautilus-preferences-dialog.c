@@ -97,6 +97,8 @@
         "animations_row"
 #define NAUTILUS_PREFERENCES_DIALOG_SHOW_HIDDEN_FILES_WIDGET                   \
         "show_hidden_files_row"
+#define NAUTILUS_PREFERENCES_DIALOG_HIDDEN_ENTRY_POINTS_GROUP                  \
+        "hidden_entry_points_group"
 
 /* toggle group preferences */
 #define NAUTILUS_PREFERENCES_DIALOG_OPEN_ACTION_TOGGLE_GROUP                   \
@@ -136,6 +138,85 @@ static const char * const usage_accent_values[] =
     "orange", "red", "pink", "purple", "slate",
     NULL
 };
+
+static void update_hidden_entry_points_group (AdwPreferencesGroup *group);
+
+static void
+unhide_entry_point_cb (GtkButton *button,
+                       gpointer   user_data)
+{
+    AdwActionRow *row = ADW_ACTION_ROW (user_data);
+    AdwPreferencesGroup *group = g_object_get_data (G_OBJECT (row), "prefs-group");
+    const char *uri = g_object_get_data (G_OBJECT (row), "entry-uri");
+
+    /* Removing the row destroys the button which emitted this signal. */
+    g_object_ref (button);
+    nautilus_preferences_set_entry_point_hidden (uri, FALSE);
+    update_hidden_entry_points_group (group);
+    g_object_unref (button);
+}
+
+static gchar *
+hidden_entry_point_title (const char *uri)
+{
+    g_autoptr (GFile) file = g_file_new_for_uri (uri);
+    g_autofree gchar *basename = g_file_get_basename (file);
+
+    if (basename != NULL && *basename != '\0')
+    {
+        return g_steal_pointer (&basename);
+    }
+
+    return g_strdup (uri);
+}
+
+static void
+update_hidden_entry_points_group (AdwPreferencesGroup *group)
+{
+    g_auto (GStrv) hidden = NULL;
+    GtkWidget *row;
+
+    while ((row = adw_preferences_group_get_row (group, 0)) != NULL)
+    {
+        adw_preferences_group_remove (group, row);
+    }
+
+    hidden = nautilus_preferences_get_hidden_entry_points ();
+
+    if (hidden[0] == NULL)
+    {
+        row = adw_action_row_new ();
+        adw_preferences_row_set_title (ADW_PREFERENCES_ROW (row),
+                                       _("No hidden entry points"));
+        gtk_widget_set_sensitive (row, FALSE);
+        adw_preferences_group_add (group, row);
+
+        return;
+    }
+
+    for (guint i = 0; hidden[i] != NULL; i++)
+    {
+        g_autofree gchar *title = hidden_entry_point_title (hidden[i]);
+        GtkWidget *button;
+
+        row = adw_action_row_new ();
+        adw_preferences_row_set_title (ADW_PREFERENCES_ROW (row), title);
+        adw_action_row_set_subtitle (ADW_ACTION_ROW (row), hidden[i]);
+        g_object_set_data_full (G_OBJECT (row), "entry-uri",
+                                g_strdup (hidden[i]), g_free);
+        g_object_set_data (G_OBJECT (row), "prefs-group", group);
+
+        button = gtk_button_new_from_icon_name ("view-reveal-symbolic");
+        gtk_widget_set_valign (button, GTK_ALIGN_CENTER);
+        gtk_widget_set_tooltip_text (button, _("Show Again"));
+        gtk_widget_add_css_class (button, "flat");
+        g_signal_connect (button, "clicked",
+                          G_CALLBACK (unhide_entry_point_cb), row);
+        adw_action_row_add_suffix (ADW_ACTION_ROW (row), button);
+
+        adw_preferences_group_add (group, row);
+    }
+}
 
 static void
 bind_builder_bool (GtkBuilder *builder,
@@ -486,6 +567,8 @@ nautilus_preferences_dialog_setup (GtkBuilder *builder)
                    NAUTILUS_PREFERENCES_DIALOG_GRID_LABEL_LINES_WIDGET,
                    NAUTILUS_PREFERENCES_UI_GRID_LABEL_LINES,
                    3);
+    update_hidden_entry_points_group (ADW_PREFERENCES_GROUP (
+        gtk_builder_get_object (builder, NAUTILUS_PREFERENCES_DIALOG_HIDDEN_ENTRY_POINTS_GROUP)));
     g_signal_connect (gtk_builder_get_object (builder,
                                               NAUTILUS_PREFERENCES_DIALOG_CLEAR_THUMBNAIL_CACHE_WIDGET),
                       "clicked", G_CALLBACK (clear_thumbnail_cache), NULL);
