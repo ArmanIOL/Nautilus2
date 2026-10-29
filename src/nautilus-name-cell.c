@@ -11,6 +11,7 @@
 #include "nautilus-directory.h"
 #include "nautilus-file.h"
 #include "nautilus-file-utilities.h"
+#include "nautilus-global-preferences.h"
 #include "nautilus-image.h"
 #include "nautilus-ui-utilities.h"
 #include "nautilus-view-item.h"
@@ -161,7 +162,9 @@ update_icon (NautilusNameCell *self)
     g_object_get (self, "icon-size", &icon_size, NULL);
     icon_paintable = nautilus_file_get_icon_paintable (file, icon_size, scale_factor, flags);
     show_thumbnail = icon_size >= NAUTILUS_THUMBNAIL_MINIMUM_ICON_SIZE &&
-                     nautilus_file_should_show_thumbnail (file);
+                     nautilus_file_should_show_thumbnail (file) &&
+                     nautilus_preferences_get_boolean (NAUTILUS_PREFERENCES_SHOW_LIST_THUMBNAILS,
+                                                       TRUE);
 
     gtk_widget_set_visible (self->icon, TRUE);
     nautilus_image_set_size (NAUTILUS_IMAGE (self->icon), icon_size);

@@ -7263,6 +7263,98 @@ msgstr "Фиолетовый"
 msgid "Slate"
 msgstr "Серо-синий"
 
+#: src/resources/ui/nautilus-window.blp
+msgid "Preview"
+msgstr "Предпросмотр"
+
+#: src/resources/ui/nautilus-window.blp
+msgid "Close Preview"
+msgstr "Закрыть предпросмотр"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Thumbnails"
+msgstr "Миниатюры"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Folder Previews"
+msgstr "Превью папок"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Show a preview composed of the items contained in folders."
+msgstr "Показывать превью, составленное из элементов внутри папок."
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Enable _Folder Previews"
+msgstr "Включить превью _папок"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Thumbnail Formats"
+msgstr "Форматы миниатюр"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Choose which kinds of files can have a thumbnail."
+msgstr "Выберите, для каких типов файлов создавать миниатюры."
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "_Video Files"
+msgstr "_Видеофайлы"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "_PDF Documents"
+msgstr "_PDF-документы"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "_Office Documents"
+msgstr "_Офисные документы"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Show Thumbnails in the _List View"
+msgstr "Показывать миниатюры в _списке"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Preview Cache"
+msgstr "Кэш предпросмотра"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Maximum File _Size"
+msgstr "Максимальный _размер файла"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Files larger than this size are not thumbnailed, in megabytes."
+msgstr "Файлы больше этого размера не обрабатываются. Значение в мегабайтах."
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Clear Thumbnail _Cache"
+msgstr "Очистить _кэш миниатюр"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Remove cached thumbnails so that they are generated again."
+msgstr "Удалить сохранённые миниатюры, чтобы они были созданы заново."
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Clear"
+msgstr "Очистить"
+
+#: src/nautilus-preferences-dialog.c
+msgid "Cleared"
+msgstr "Очищено"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Preview Panel"
+msgstr "Панель предпросмотра"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Show the _Preview Panel"
+msgstr "Показывать панель _предпросмотра"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Display a large preview and details of the selected file next to the view."
+msgstr "Показывать крупное превью и сведения о выбранном файле рядом с просмотром."
+
+#: src/nautilus-preview-panel.c
+msgid "Select a file to preview it"
+msgstr "Выберите файл для предпросмотра"
+
 #~ msgid "Wallpapers"
 #~ msgstr "Обои"
 

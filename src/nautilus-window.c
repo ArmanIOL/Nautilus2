@@ -37,6 +37,7 @@
 #include "nautilus-global-preferences.h"
 #include "nautilus-network-address-bar.h"
 #include "nautilus-module.h"
+#include "nautilus-preview-panel.h"
 #include "nautilus-progress-indicator.h"
 #include "nautilus-scheme.h"
 #include "nautilus-shortcut-manager.h"
@@ -75,6 +76,8 @@ struct _NautilusWindow
     NautilusWindowSlot *active_slot; /* weak reference */
 
     GtkWidget *split_view;
+    GtkWidget *preview_split_view;
+    NautilusPreviewPanel *preview_panel;
 
     /* Side Pane */
     NautilusSidebar *places_sidebar;
@@ -641,6 +644,52 @@ action_restore_tab (GSimpleAction *action,
 }
 
 static void
+on_preview_panel_pref_changed (NautilusWindow *window)
+{
+    gboolean show = nautilus_preferences_get_boolean (NAUTILUS_PREFERENCES_SHOW_PREVIEW_PANEL,
+                                                      FALSE);
+
+    adw_overlay_split_view_set_show_sidebar (ADW_OVERLAY_SPLIT_VIEW (window->preview_split_view),
+                                             show);
+}
+
+static void
+update_preview_panel (NautilusWindow *window)
+{
+    GList *selection = NULL;
+    NautilusFile *file = NULL;
+
+    if (window->preview_panel == NULL)
+    {
+        return;
+    }
+
+    if (window->active_slot != NULL)
+    {
+        selection = nautilus_window_slot_get_selection (window->active_slot);
+    }
+
+    if (selection != NULL && selection->next == NULL)
+    {
+        file = NAUTILUS_FILE (selection->data);
+    }
+
+    nautilus_preview_panel_set_file (window->preview_panel, file);
+}
+
+static void
+action_toggle_preview (GSimpleAction *action,
+                       GVariant      *state,
+                       gpointer       user_data)
+{
+    NautilusWindow *window = NAUTILUS_WINDOW (user_data);
+    gboolean revealed;
+
+    revealed = adw_overlay_split_view_get_show_sidebar (ADW_OVERLAY_SPLIT_VIEW (window->preview_split_view));
+    adw_overlay_split_view_set_show_sidebar (ADW_OVERLAY_SPLIT_VIEW (window->preview_split_view), !revealed);
+}
+
+static void
 action_toggle_sidebar (GSimpleAction *action,
                        GVariant      *state,
                        gpointer       user_data)
@@ -1157,6 +1206,7 @@ static const GActionEntry win_entries[] =
     { .name = "go-to-tab", .parameter_type = "i", .state = "0", .change_state = action_go_to_tab },
     { .name = "restore-tab", .activate = action_restore_tab },
     { .name = "toggle-sidebar", .activate = action_toggle_sidebar },
+    { .name = "toggle-preview", .activate = action_toggle_preview },
 };
 
 static void
@@ -1277,6 +1327,14 @@ nautilus_window_constructed (GObject *self)
 
     nautilus_window_set_up_sidebar (window);
     nautilus_window_set_up_sidebar_resize (window);
+
+    adw_overlay_split_view_set_show_sidebar (ADW_OVERLAY_SPLIT_VIEW (window->preview_split_view),
+                                             nautilus_preferences_get_boolean (NAUTILUS_PREFERENCES_SHOW_PREVIEW_PANEL,
+                                                                                FALSE));
+    g_signal_connect_object (nautilus_preferences,
+                             "changed::" NAUTILUS_PREFERENCES_SHOW_PREVIEW_PANEL,
+                             G_CALLBACK (on_preview_panel_pref_changed), window,
+                             G_CONNECT_SWAPPED);
 
 
     g_signal_connect_object (nautilus_file_undo_manager_get (), "undo-changed",
@@ -1408,9 +1466,15 @@ set_active_slot (NautilusWindow     *window,
         /* inform slot & view */
         nautilus_window_slot_set_active (new_slot, TRUE);
 
+        g_signal_connect_object (new_slot, "notify::selection",
+                                 G_CALLBACK (update_preview_panel), window,
+                                 G_CONNECT_SWAPPED);
+
         on_location_changed (window);
         update_cursor (window);
     }
+
+    update_preview_panel (window);
 
     g_object_notify_by_pspec (G_OBJECT (window), properties[PROP_ACTIVE_SLOT]);
 }
@@ -1582,6 +1646,7 @@ nautilus_window_init (NautilusWindow *window)
     g_type_ensure (NAUTILUS_TYPE_NETWORK_ADDRESS_BAR);
     g_type_ensure (NAUTILUS_TYPE_TOOLBAR);
     g_type_ensure (NAUTILUS_TYPE_PLACES_SIDEBAR);
+    g_type_ensure (NAUTILUS_TYPE_PREVIEW_PANEL);
     g_type_ensure (NAUTILUS_TYPE_PROGRESS_INDICATOR);
     g_type_ensure (NAUTILUS_TYPE_SHORTCUT_MANAGER);
     gtk_widget_init_template (GTK_WIDGET (window));
@@ -1704,6 +1769,8 @@ nautilus_window_class_init (NautilusWindowClass *class)
     gtk_widget_class_bind_template_child (wclass, NautilusWindow, undo_redo_section);
     gtk_widget_class_bind_template_child (wclass, NautilusWindow, toolbar);
     gtk_widget_class_bind_template_child (wclass, NautilusWindow, split_view);
+    gtk_widget_class_bind_template_child (wclass, NautilusWindow, preview_split_view);
+    gtk_widget_class_bind_template_child (wclass, NautilusWindow, preview_panel);
     gtk_widget_class_bind_template_child (wclass, NautilusWindow, places_sidebar);
     gtk_widget_class_bind_template_child (wclass, NautilusWindow, sidebar_resize_handle);
     gtk_widget_class_bind_template_child (wclass, NautilusWindow, toast_overlay);

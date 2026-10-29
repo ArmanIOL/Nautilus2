@@ -163,4 +163,86 @@ Adw.PreferencesDialog preferences_dialog {
       }
     }
   }
+
+  Adw.PreferencesPage {
+    title: _("Thumbnails");
+
+    Adw.PreferencesGroup {
+      title: _("Folder Previews");
+      description: _("Show a preview composed of the items contained in folders.");
+
+      Adw.SwitchRow folder_thumbnails_row {
+        title: _("Enable _Folder Previews");
+        use-underline: true;
+      }
+    }
+
+    Adw.PreferencesGroup {
+      title: _("Thumbnail Formats");
+      description: _("Choose which kinds of files can have a thumbnail.");
+
+      Adw.SwitchRow video_thumbnails_row {
+        title: _("_Video Files");
+        use-underline: true;
+      }
+
+      Adw.SwitchRow pdf_thumbnails_row {
+        title: _("_PDF Documents");
+        use-underline: true;
+      }
+
+      Adw.SwitchRow office_thumbnails_row {
+        title: _("_Office Documents");
+        use-underline: true;
+      }
+
+      Adw.SwitchRow list_thumbnails_row {
+        title: _("Show Thumbnails in the _List View");
+        use-underline: true;
+      }
+    }
+
+    Adw.PreferencesGroup {
+      title: _("Preview Cache");
+
+      Adw.SpinRow thumbnail_limit_row {
+        title: _("Maximum File _Size");
+        subtitle: _("Files larger than this size are not thumbnailed, in megabytes.");
+        use-underline: true;
+        digits: 0;
+        adjustment: Adjustment {
+          lower: 1;
+          upper: 1024;
+          step-increment: 1;
+          page-increment: 10;
+        };
+      }
+
+      Adw.ActionRow clear_thumbnail_cache_row {
+        title: _("Clear Thumbnail _Cache");
+        subtitle: _("Remove cached thumbnails so that they are generated again.");
+        use-underline: true;
+        activatable: false;
+
+        [suffix]
+        Button clear_thumbnail_cache_button {
+          label: _("Clear");
+          valign: center;
+          styles [
+            "destructive-action",
+          ]
+        }
+      }
+    }
+
+    Adw.PreferencesGroup {
+      title: _("Preview Panel");
+
+      Adw.SwitchRow preview_panel_row {
+        title: _("Show the _Preview Panel");
+        subtitle: _("Display a large preview and details of the selected file next to the view.");
+        use-underline: true;
+      }
+    }
+  }
 }

@@ -118,6 +118,32 @@ nautilus_global_preferences_init (void)
                               NULL);
 }
 
+gboolean
+nautilus_preferences_get_boolean (const char *key,
+                                  gboolean    fallback)
+{
+    GSettingsSchemaSource *source;
+    GSettingsSchema *schema;
+    gboolean has_key;
+    gboolean value;
+
+    source = g_settings_schema_source_get_default ();
+    schema = source != NULL
+             ? g_settings_schema_source_lookup (source,
+                                                "org.gnome.nautilus.preferences",
+                                                TRUE)
+             : NULL;
+    has_key = schema != NULL && g_settings_schema_has_key (schema, key);
+    value = has_key ? g_settings_get_boolean (nautilus_preferences, key) : fallback;
+
+    if (schema != NULL)
+    {
+        g_settings_schema_unref (schema);
+    }
+
+    return value;
+}
+
 guint
 nautilus_global_preferences_get_back_button (void)
 {

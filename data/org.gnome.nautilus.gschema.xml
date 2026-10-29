@@ -140,6 +140,36 @@
       <summary>Maximum image size for thumbnailing</summary>
       <description>Images over this size (in megabytes) won’t be thumbnailed. The purpose of this setting is to avoid thumbnailing large images that may take a long time to load or use lots of memory.</description>
     </key>
+    <key type="b" name="show-folder-thumbnails">
+      <default>true</default>
+      <summary>Show previews of folder contents</summary>
+      <description>If set to true, folders are shown with a preview composed from the items they contain, similar to Dolphin.</description>
+    </key>
+    <key type="b" name="show-list-thumbnails">
+      <default>true</default>
+      <summary>Show thumbnails in the list view</summary>
+      <description>If set to true, previewable files show a thumbnail in the list view when the list zoom level is large enough.</description>
+    </key>
+    <key type="b" name="thumbnail-pdf">
+      <default>true</default>
+      <summary>Create thumbnails for PDF documents</summary>
+      <description>If set to true, the first page of PDF documents is rendered as a thumbnail. This requires the pdftoppm utility.</description>
+    </key>
+    <key type="b" name="thumbnail-video">
+      <default>true</default>
+      <summary>Create thumbnails for video files</summary>
+      <description>If set to true, video files are shown with a frame from the video as their thumbnail.</description>
+    </key>
+    <key type="b" name="thumbnail-office">
+      <default>true</default>
+      <summary>Create thumbnails for office documents</summary>
+      <description>If set to true, office documents are shown with a preview of their first page as their thumbnail.</description>
+    </key>
+    <key type="b" name="show-preview-panel">
+      <default>false</default>
+      <summary>Show the preview panel</summary>
+      <description>If set to true, a panel with a large preview and details of the selected file is shown next to the view.</description>
+    </key>
     <key name="default-sort-order" enum="org.gnome.nautilus.SortOrder">
       <aliases>
         <alias value='atime' target='date_accessed'/>

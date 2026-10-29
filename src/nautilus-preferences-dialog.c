@@ -12,6 +12,7 @@
 #include "nautilus-preferences-dialog.h"
 
 #include <adwaita.h>
+#include <glib/gstdio.h>
 #include <glib/gi18n.h>
 
 #include "nautilus-date-utilities.h"
@@ -38,6 +39,22 @@
         "show_volume_sizes_row"
 #define NAUTILUS_PREFERENCES_DIALOG_SHOW_VOLUME_USAGE_WIDGET                   \
         "show_volume_usage_row"
+#define NAUTILUS_PREFERENCES_DIALOG_FOLDER_THUMBNAILS_WIDGET                   \
+        "folder_thumbnails_row"
+#define NAUTILUS_PREFERENCES_DIALOG_LIST_THUMBNAILS_WIDGET                     \
+        "list_thumbnails_row"
+#define NAUTILUS_PREFERENCES_DIALOG_VIDEO_THUMBNAILS_WIDGET                    \
+        "video_thumbnails_row"
+#define NAUTILUS_PREFERENCES_DIALOG_PDF_THUMBNAILS_WIDGET                      \
+        "pdf_thumbnails_row"
+#define NAUTILUS_PREFERENCES_DIALOG_OFFICE_THUMBNAILS_WIDGET                   \
+        "office_thumbnails_row"
+#define NAUTILUS_PREFERENCES_DIALOG_PREVIEW_PANEL_WIDGET                       \
+        "preview_panel_row"
+#define NAUTILUS_PREFERENCES_DIALOG_THUMBNAIL_LIMIT_WIDGET                     \
+        "thumbnail_limit_row"
+#define NAUTILUS_PREFERENCES_DIALOG_CLEAR_THUMBNAIL_CACHE_WIDGET               \
+        "clear_thumbnail_cache_button"
 
 /* toggle group preferences */
 #define NAUTILUS_PREFERENCES_DIALOG_OPEN_ACTION_TOGGLE_GROUP                   \
@@ -178,6 +195,58 @@ bind_builder_toggle_group (GtkBuilder *builder,
 }
 
 static void
+clear_thumbnail_cache (GtkButton *button,
+                       gpointer   user_data)
+{
+    static const char *cache_sizes[] = { "normal", "large", "x-large", "xx-large" };
+    g_autofree char *cache_root = g_build_filename (g_get_user_cache_dir (), "thumbnails", NULL);
+
+    for (guint i = 0; i < G_N_ELEMENTS (cache_sizes); i++)
+    {
+        g_autofree char *directory = g_build_filename (cache_root, cache_sizes[i], NULL);
+        g_autoptr (GDir) dir = g_dir_open (directory, 0, NULL);
+        const char *name;
+
+        if (dir == NULL)
+        {
+            continue;
+        }
+
+        while ((name = g_dir_read_name (dir)) != NULL)
+        {
+            g_autofree char *path = g_build_filename (directory, name, NULL);
+
+            g_unlink (path);
+        }
+    }
+
+    gtk_button_set_label (button, _("Cleared"));
+    gtk_widget_set_sensitive (GTK_WIDGET (button), FALSE);
+}
+
+static void
+thumbnail_limit_changed (AdwSpinRow *row,
+                         GParamSpec *pspec,
+                         gpointer    user_data)
+{
+    g_settings_set_uint64 (nautilus_preferences,
+                           NAUTILUS_PREFERENCES_FILE_THUMBNAIL_LIMIT,
+                           (guint64) adw_spin_row_get_value (row));
+}
+
+static void
+setup_thumbnail_limit (GtkBuilder *builder)
+{
+    AdwSpinRow *row = ADW_SPIN_ROW (gtk_builder_get_object (builder,
+                                                            NAUTILUS_PREFERENCES_DIALOG_THUMBNAIL_LIMIT_WIDGET));
+
+    adw_spin_row_set_value (row,
+                            (double) g_settings_get_uint64 (nautilus_preferences,
+                                                            NAUTILUS_PREFERENCES_FILE_THUMBNAIL_LIMIT));
+    g_signal_connect (row, "notify::value", G_CALLBACK (thumbnail_limit_changed), NULL);
+}
+
+static void
 nautilus_preferences_dialog_setup (GtkBuilder *builder)
 {
     setup_combo (builder, NAUTILUS_PREFERENCES_DIALOG_SEARCH_RECURSIVE_ROW,
@@ -222,6 +291,29 @@ nautilus_preferences_dialog_setup (GtkBuilder *builder)
     bind_builder_bool (builder, nautilus_preferences,
                        NAUTILUS_PREFERENCES_DIALOG_SHOW_VOLUME_USAGE_WIDGET,
                        NAUTILUS_PREFERENCES_SHOW_VOLUME_USAGE);
+    bind_builder_bool (builder, nautilus_preferences,
+                       NAUTILUS_PREFERENCES_DIALOG_FOLDER_THUMBNAILS_WIDGET,
+                       NAUTILUS_PREFERENCES_SHOW_FOLDER_THUMBNAILS);
+    bind_builder_bool (builder, nautilus_preferences,
+                       NAUTILUS_PREFERENCES_DIALOG_LIST_THUMBNAILS_WIDGET,
+                       NAUTILUS_PREFERENCES_SHOW_LIST_THUMBNAILS);
+    bind_builder_bool (builder, nautilus_preferences,
+                       NAUTILUS_PREFERENCES_DIALOG_VIDEO_THUMBNAILS_WIDGET,
+                       NAUTILUS_PREFERENCES_THUMBNAIL_VIDEO);
+    bind_builder_bool (builder, nautilus_preferences,
+                       NAUTILUS_PREFERENCES_DIALOG_PDF_THUMBNAILS_WIDGET,
+                       NAUTILUS_PREFERENCES_THUMBNAIL_PDF);
+    bind_builder_bool (builder, nautilus_preferences,
+                       NAUTILUS_PREFERENCES_DIALOG_OFFICE_THUMBNAILS_WIDGET,
+                       NAUTILUS_PREFERENCES_THUMBNAIL_OFFICE);
+    bind_builder_bool (builder, nautilus_preferences,
+                       NAUTILUS_PREFERENCES_DIALOG_PREVIEW_PANEL_WIDGET,
+                       NAUTILUS_PREFERENCES_SHOW_PREVIEW_PANEL);
+
+    setup_thumbnail_limit (builder);
+    g_signal_connect (gtk_builder_get_object (builder,
+                                              NAUTILUS_PREFERENCES_DIALOG_CLEAR_THUMBNAIL_CACHE_WIDGET),
+                      "clicked", G_CALLBACK (clear_thumbnail_cache), NULL);
 
     setup_detailed_date (builder);
 

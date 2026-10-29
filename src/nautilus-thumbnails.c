@@ -13,11 +13,14 @@
 
 #define GNOME_DESKTOP_USE_UNSTABLE_API
 
+#include "nautilus-global-preferences.h"
 #include "nautilus-hash-queue.h"
 
 #include <glycin.h>
 #include <glycin-gtk4.h>
+#include <glib/gstdio.h>
 #include <gtk/gtk.h>
+#include <unistd.h>
 #include <libgnome-desktop/gnome-desktop-thumbnail.h>
 
 /* Should never be a reasonable actual mtime */
@@ -257,12 +260,48 @@ nautilus_thumbnail_is_mimetype_limited_by_size (const char *mime_type)
     return pixbuf_can_load_type (mime_type);
 }
 
+static gboolean
+mime_is_office_document (const char *mime_type)
+{
+    return mime_type != NULL &&
+           (g_content_type_is_a (mime_type, "application/vnd.oasis.opendocument") ||
+            g_content_type_is_a (mime_type, "application/vnd.openxmlformats-officedocument") ||
+            g_content_type_is_a (mime_type, "application/vnd.ms-office") ||
+            g_strcmp0 (mime_type, "application/msword") == 0 ||
+            g_strcmp0 (mime_type, "application/rtf") == 0 ||
+            g_strcmp0 (mime_type, "application/vnd.ms-excel") == 0 ||
+            g_strcmp0 (mime_type, "application/vnd.ms-powerpoint") == 0);
+}
+
 gboolean
 nautilus_can_thumbnail (const gchar *uri,
                         const gchar *mime_type,
                         time_t       modified_time)
 {
-    GnomeDesktopThumbnailFactory *factory = get_thumbnail_factory ();
+    GnomeDesktopThumbnailFactory *factory;
+
+    if (mime_type != NULL)
+    {
+        if (g_content_type_is_a (mime_type, "video/*") &&
+            !nautilus_preferences_get_boolean (NAUTILUS_PREFERENCES_THUMBNAIL_VIDEO, TRUE))
+        {
+            return FALSE;
+        }
+
+        if (mime_is_office_document (mime_type) &&
+            !nautilus_preferences_get_boolean (NAUTILUS_PREFERENCES_THUMBNAIL_OFFICE, TRUE))
+        {
+            return FALSE;
+        }
+
+        if (g_strcmp0 (mime_type, "application/pdf") == 0)
+        {
+            return nautilus_preferences_get_boolean (NAUTILUS_PREFERENCES_THUMBNAIL_PDF, TRUE) &&
+                   g_find_program_in_path ("pdftoppm") != NULL;
+        }
+    }
+
+    factory = get_thumbnail_factory ();
 
     return gnome_desktop_thumbnail_factory_can_thumbnail (factory,
                                                           uri,
@@ -752,6 +791,136 @@ thumbnail_generated_cb (GObject      *source_object,
     }
 }
 
+typedef struct
+{
+    char *tmp_base;
+    char *tmp_output;
+} PdfThumbnailData;
+
+static void
+pdf_thumbnail_data_free (PdfThumbnailData *data)
+{
+    g_free (data->tmp_base);
+    g_free (data->tmp_output);
+    g_free (data);
+}
+
+static void
+pdf_thumbnail_thread (GTask        *task,
+                      gpointer      source_object,
+                      gpointer      task_data,
+                      GCancellable *cancellable)
+{
+    NautilusThumbnailInfo *info = g_task_get_task_data (task);
+    g_autoptr (GError) error = NULL;
+    g_autofree char *path = g_filename_from_uri (info->image_uri, NULL, NULL);
+    g_autofree char *size_arg = g_strdup_printf ("%d", nautilus_thumbnail_get_max_size ());
+    PdfThumbnailData *data;
+    const char *argv[] = {
+        "pdftoppm", "-png", "-f", "1", "-l", "1", "-singlefile",
+        "-scale-to", NULL, NULL, NULL, NULL
+    };
+    int fd;
+    int status = 0;
+
+    if (path == NULL)
+    {
+        g_task_return_new_error (task, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED,
+                                 "Not a local file");
+        return;
+    }
+
+    data = g_new0 (PdfThumbnailData, 1);
+    fd = g_file_open_tmp ("nautilus-pdf-XXXXXX", &data->tmp_base, &error);
+
+    if (fd < 0)
+    {
+        pdf_thumbnail_data_free (data);
+        g_task_return_error (task, g_steal_pointer (&error));
+        return;
+    }
+
+    close (fd);
+    g_unlink (data->tmp_base);
+    data->tmp_output = g_strconcat (data->tmp_base, ".png", NULL);
+    argv[8] = size_arg;
+    argv[9] = path;
+    argv[10] = data->tmp_base;
+
+    g_autoptr (GdkPixbuf) pixbuf = NULL;
+
+    if (g_spawn_sync (NULL, (char **) argv, NULL, G_SPAWN_SEARCH_PATH,
+                      NULL, NULL, NULL, NULL, &status, &error) &&
+        g_spawn_check_wait_status (status, NULL))
+    {
+        pixbuf = gdk_pixbuf_new_from_file (data->tmp_output, &error);
+    }
+
+    g_unlink (data->tmp_output);
+    pdf_thumbnail_data_free (data);
+
+    if (pixbuf == NULL)
+    {
+        g_task_return_new_error (task, G_IO_ERROR, G_IO_ERROR_FAILED,
+                                 "Could not render PDF thumbnail: %s",
+                                 error != NULL ? error->message : "unknown error");
+        return;
+    }
+
+    g_task_return_pointer (task, g_steal_pointer (&pixbuf),
+                           (GDestroyNotify) g_object_unref);
+}
+
+static void
+pdf_thumbnail_generated_cb (GObject      *source_object,
+                            GAsyncResult *result,
+                            gpointer      data)
+{
+    NautilusThumbnailInfo *info = data;
+    GnomeDesktopThumbnailFactory *thumbnail_factory = get_thumbnail_factory ();
+    g_autoptr (GError) error = NULL;
+    g_autoptr (GdkPixbuf) pixbuf = g_task_propagate_pointer (G_TASK (result), &error);
+
+    if (pixbuf != NULL)
+    {
+        g_autofree gchar *mtime = g_strdup_printf ("%" G_GINT64_FORMAT,
+                                                   (gint64) info->updated_file_mtime);
+
+        gdk_pixbuf_set_option (pixbuf, "tEXt::Thumb::MTime", mtime);
+        g_clear_object (&info->pixbuf);
+        info->pixbuf = g_object_ref (pixbuf);
+
+        gnome_desktop_thumbnail_factory_save_thumbnail_async (thumbnail_factory,
+                                                              pixbuf,
+                                                              info->image_uri,
+                                                              info->updated_file_mtime,
+                                                              NULL,
+                                                              thumbnail_saved_cb,
+                                                              info);
+    }
+    else
+    {
+        info->error = g_error_copy (error);
+
+        gnome_desktop_thumbnail_factory_create_failed_thumbnail_async (thumbnail_factory,
+                                                                       info->image_uri,
+                                                                       info->updated_file_mtime,
+                                                                       NULL,
+                                                                       thumbnail_failed_cb,
+                                                                       info);
+    }
+}
+
+static void
+pdf_thumbnail_generate_async (NautilusThumbnailInfo *info)
+{
+    g_autoptr (GTask) task = g_task_new (NULL, NULL, pdf_thumbnail_generated_cb, info);
+
+    g_task_set_task_data (task, info, NULL);
+    g_task_set_priority (task, G_PRIORITY_LOW);
+    g_task_run_in_thread (task, pdf_thumbnail_thread);
+}
+
 /* This function is added as a very low priority idle function to start the
  *  async threads to create any needed thumbnails. It is added with a very
  *  low priority so that it doesn't delay showing the directory in the
@@ -821,12 +990,21 @@ thumbnail_starter_cb (gpointer data)
         running_threads += 1;
         g_hash_table_insert (currently_thumbnailing_hash, info->image_uri, info);
 
-        gnome_desktop_thumbnail_factory_generate_thumbnail_async (thumbnail_factory,
-                                                                  info->image_uri,
-                                                                  info->mime_type,
-                                                                  NULL,
-                                                                  thumbnail_generated_cb,
-                                                                  info);
+        if (g_strcmp0 (info->mime_type, "application/pdf") == 0 &&
+            nautilus_preferences_get_boolean (NAUTILUS_PREFERENCES_THUMBNAIL_PDF, TRUE) &&
+            g_find_program_in_path ("pdftoppm") != NULL)
+        {
+            pdf_thumbnail_generate_async (info);
+        }
+        else
+        {
+            gnome_desktop_thumbnail_factory_generate_thumbnail_async (thumbnail_factory,
+                                                                      info->image_uri,
+                                                                      info->mime_type,
+                                                                      NULL,
+                                                                      thumbnail_generated_cb,
+                                                                      info);
+        }
     }
 
     /* Reschedule thumbnailing via a change notification */

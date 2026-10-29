@@ -10,6 +10,7 @@
 
 #include "nautilus-image.h"
 
+#include "nautilus-folder-thumbnail.h"
 #include "nautilus-global-preferences.h"
 #include "nautilus-hash-queue.h"
 #include "nautilus-mime-actions.h"
@@ -294,6 +295,33 @@ thumbnail_file_read_callback (GObject      *source_object,
 }
 
 static void
+folder_thumbnail_ready_cb (GObject      *source_object,
+                           GAsyncResult *res,
+                           gpointer      user_data)
+{
+    NautilusImage *self = user_data;
+    g_autoptr (GError) error = NULL;
+    g_autoptr (GdkTexture) texture =
+        nautilus_folder_thumbnail_create_finish (res, &error);
+
+    if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+    {
+        return;
+    }
+
+    if (texture != NULL)
+    {
+        nautilus_image_set_texture (self, texture);
+        thumbnail_cache_add (self->source, self->texture, self->source_mtime);
+    }
+    else
+    {
+        self->error = g_steal_pointer (&error);
+        handle_loading_error (self);
+    }
+}
+
+static void
 file_info_ready_callback (GObject      *source_object,
                           GAsyncResult *res,
                           gpointer      user_data)
@@ -336,6 +364,26 @@ file_info_ready_callback (GObject      *source_object,
     else
     {
         self->source_content_type = g_strdup ("application/octet-stream");
+    }
+
+    /* Directories get a Dolphin-style preview composed from their children. */
+    if (g_strcmp0 (self->source_content_type, "inode/directory") == 0)
+    {
+        if (nautilus_preferences_get_boolean (NAUTILUS_PREFERENCES_SHOW_FOLDER_THUMBNAILS,
+                                              TRUE))
+        {
+            nautilus_folder_thumbnail_create_async (self->source,
+                                                    self->size,
+                                                    self->cancellable,
+                                                    folder_thumbnail_ready_cb,
+                                                    self);
+        }
+        else
+        {
+            handle_loading_error (self);
+        }
+
+        return;
     }
 
     /* Look in nautilus's thumbnail cache */

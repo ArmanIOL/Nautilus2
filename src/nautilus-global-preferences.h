@@ -111,6 +111,14 @@ typedef enum
 /* Date and time format in the view */
 #define NAUTILUS_PREFERENCES_DATE_TIME_FORMAT "date-time-format"
 
+/* Thumbnails and previews */
+#define NAUTILUS_PREFERENCES_SHOW_FOLDER_THUMBNAILS "show-folder-thumbnails"
+#define NAUTILUS_PREFERENCES_SHOW_LIST_THUMBNAILS "show-list-thumbnails"
+#define NAUTILUS_PREFERENCES_THUMBNAIL_PDF "thumbnail-pdf"
+#define NAUTILUS_PREFERENCES_THUMBNAIL_VIDEO "thumbnail-video"
+#define NAUTILUS_PREFERENCES_THUMBNAIL_OFFICE "thumbnail-office"
+#define NAUTILUS_PREFERENCES_SHOW_PREVIEW_PANEL "show-preview-panel"
+
 /* Sidebar */
 #define NAUTILUS_PREFERENCES_SHOW_SIDEBAR_TRASH "show-sidebar-trash"
 #define NAUTILUS_PREFERENCES_SHOW_SIDEBAR_NETWORK "show-sidebar-network"
@@ -130,6 +138,11 @@ void nautilus_global_preferences_init                      (void);
 guint nautilus_global_preferences_get_back_button (void);
 guint nautilus_global_preferences_get_forward_button (void);
 gboolean nautilus_global_preferences_get_use_extra_buttons (void);
+
+/* Reads a preference, falling back to @fallback when the key is not present in
+ * the installed schema (for example when running from the build directory). */
+gboolean nautilus_preferences_get_boolean (const char *key,
+                                           gboolean    fallback);
 
 extern GSettings *nautilus_preferences;
 extern GSettings *nautilus_compression_preferences;

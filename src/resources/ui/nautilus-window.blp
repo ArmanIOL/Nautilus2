@@ -196,7 +196,38 @@ template $NautilusWindow: Adw.ApplicationWindow {
             }
           };
 
-          content: Adw.ToolbarView {
+          content: Adw.OverlaySplitView preview_split_view {
+            collapsed: false;
+            sidebar-position: end;
+            show-sidebar: false;
+            min-sidebar-width: 300;
+            max-sidebar-width: 460;
+            sidebar-width-fraction: 0.3;
+            enable-show-gesture: false;
+            enable-hide-gesture: false;
+
+            sidebar: Adw.ToolbarView {
+              [top]
+              Adw.HeaderBar {
+                title-widget: Adw.WindowTitle {
+                  title: _("Preview");
+                };
+
+                [end]
+                Button close_preview_button {
+                  icon-name: "window-close-symbolic";
+                  tooltip-text: _("Close Preview");
+                  action-name: "win.toggle-preview";
+                  styles [
+                    "flat",
+                  ]
+                }
+              }
+
+              content: $NautilusPreviewPanel preview_panel {};
+            };
+
+            content: Adw.ToolbarView {
             [top]
             $NautilusToolbar toolbar {
               show-view-controls: true;
@@ -245,6 +276,7 @@ template $NautilusWindow: Adw.ApplicationWindow {
                 action-name: "win.open-tab-overview";
               }
             }
+          };
           };
         };
       };
