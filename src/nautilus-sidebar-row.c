@@ -379,7 +379,7 @@ nautilus_sidebar_row_set_property (GObject      *object,
         case PROP_SECTION_TYPE:
         {
             self->section_type = g_value_get_enum (value);
-            if (self->section_type == NAUTILUS_SIDEBAR_SECTION_DEFAULT_LOCATIONS)
+            if (self->section_type == NAUTILUS_SIDEBAR_SECTION_ENTRY_POINTS)
             {
                 gtk_label_set_ellipsize (GTK_LABEL (self->label_widget), PANGO_ELLIPSIZE_NONE);
             }

@@ -389,3 +389,11 @@ rubberband {
 .toolbar.no-bottom-padding {
   padding-bottom: 0px;
 }
+
+/* Sidebar section headers */
+
+.sidebar-section-header {
+  font-size: smaller;
+  font-weight: bold;
+  opacity: 0.55;
+}

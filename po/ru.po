@@ -7123,6 +7123,46 @@ msgstr "Закрыть"
 #~ msgid "Use Default"
 #~ msgstr "Использовать по умолчанию"
 
+#: src/nautilus-sidebar.c
+msgid "Entry Points"
+msgstr "Точки входа"
+
+#: src/nautilus-sidebar.c
+msgid "Volumes"
+msgstr "Тома"
+
+#: src/nautilus-sidebar.c
+msgid "Downloads"
+msgstr "Загрузки"
+
+#: src/nautilus-sidebar.c
+msgid "Pictures"
+msgstr "Изображения"
+
+#: src/nautilus-sidebar.c
+msgid "Videos"
+msgstr "Видео"
+
+#: src/nautilus-sidebar.c
+msgid "Open the Documents folder"
+msgstr "Открыть папку «Документы»"
+
+#: src/nautilus-sidebar.c
+msgid "Open the Downloads folder"
+msgstr "Открыть папку «Загрузки»"
+
+#: src/nautilus-sidebar.c
+msgid "Open the Music folder"
+msgstr "Открыть папку «Музыка»"
+
+#: src/nautilus-sidebar.c
+msgid "Open the Pictures folder"
+msgstr "Открыть папку «Изображения»"
+
+#: src/nautilus-sidebar.c
+msgid "Open the Videos folder"
+msgstr "Открыть папку «Видео»"
+
 #~ msgid "Wallpapers"
 #~ msgstr "Обои"
 

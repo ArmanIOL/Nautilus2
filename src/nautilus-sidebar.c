@@ -318,6 +318,43 @@ emit_drag_perform_drop (NautilusSidebar *sidebar,
     g_signal_emit (sidebar, places_sidebar_signals[DRAG_PERFORM_DROP], 0,
                    dest_file, source_file_list, action);
 }
+static NautilusSidebarSectionType
+get_visible_section (NautilusSidebarSectionType section_type)
+{
+    /* Bookmarks are shown inside the "Entry Points" group, so that the
+     * sidebar only has three visible sections. */
+    if (section_type == NAUTILUS_SIDEBAR_SECTION_BOOKMARKS)
+    {
+        return NAUTILUS_SIDEBAR_SECTION_ENTRY_POINTS;
+    }
+
+    return section_type;
+}
+
+static const char *
+get_section_label (NautilusSidebarSectionType section_type)
+{
+    switch (section_type)
+    {
+        case NAUTILUS_SIDEBAR_SECTION_ENTRY_POINTS:
+        {
+            return _("Entry Points");
+        }
+        case NAUTILUS_SIDEBAR_SECTION_NETWORK:
+        {
+            return _("Network");
+        }
+        case NAUTILUS_SIDEBAR_SECTION_MOUNTS:
+        {
+            return _("Volumes");
+        }
+        default:
+        {
+            return NULL;
+        }
+    }
+}
+
 static void
 list_box_header_func (GtkListBoxRow *row,
                       GtkListBoxRow *before,
@@ -325,7 +362,11 @@ list_box_header_func (GtkListBoxRow *row,
 {
     NautilusSidebarSectionType row_section_type;
     NautilusSidebarSectionType before_section_type;
-    GtkWidget *separator;
+    NautilusSidebarSectionType row_visible_section;
+    NautilusSidebarSectionType before_visible_section;
+    const char *label_text;
+    GtkWidget *header;
+    GtkWidget *label;
 
     gtk_list_box_row_set_header (row, NULL);
 
@@ -339,11 +380,39 @@ list_box_header_func (GtkListBoxRow *row,
         before_section_type = NAUTILUS_SIDEBAR_SECTION_INVALID;
     }
 
-    if (before && before_section_type != row_section_type)
+    row_visible_section = get_visible_section (row_section_type);
+    before_visible_section = get_visible_section (before_section_type);
+
+    if (before != NULL && before_visible_section == row_visible_section)
     {
-        separator = gtk_separator_new (GTK_ORIENTATION_HORIZONTAL);
-        gtk_list_box_row_set_header (row, separator);
+        return;
     }
+
+    label_text = get_section_label (row_visible_section);
+    if (label_text == NULL)
+    {
+        return;
+    }
+
+    header = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+    gtk_widget_set_margin_top (header, before != NULL ? 12 : 6);
+
+    if (before != NULL)
+    {
+        GtkWidget *separator = gtk_separator_new (GTK_ORIENTATION_HORIZONTAL);
+        gtk_widget_set_margin_bottom (separator, 8);
+        gtk_box_append (GTK_BOX (header), separator);
+    }
+
+    label = gtk_label_new (label_text);
+    gtk_widget_add_css_class (label, "sidebar-section-header");
+    gtk_label_set_xalign (GTK_LABEL (label), 0.0);
+    gtk_widget_set_margin_start (label, 12);
+    gtk_widget_set_margin_end (label, 12);
+    gtk_widget_set_margin_bottom (label, 6);
+    gtk_box_append (GTK_BOX (header), label);
+
+    gtk_list_box_row_set_header (row, header);
 }
 
 static GtkWidget *
@@ -438,38 +507,6 @@ add_place (NautilusSidebar           *sidebar,
 }
 
 static gboolean
-recent_files_setting_is_enabled (NautilusSidebar *sidebar)
-{
-    GtkSettings *settings;
-    gboolean enabled;
-
-    settings = gtk_widget_get_settings (GTK_WIDGET (sidebar));
-    g_object_get (settings, "gtk-recent-files-enabled", &enabled, NULL);
-
-    return enabled;
-}
-
-static gboolean
-recent_scheme_is_supported (void)
-{
-    const char * const *supported;
-
-    supported = g_vfs_get_supported_uri_schemes (g_vfs_get_default ());
-    if (supported != NULL)
-    {
-        return g_strv_contains (supported, SCHEME_RECENT);
-    }
-
-    return FALSE;
-}
-
-static gboolean
-should_show_recent (NautilusSidebar *sidebar)
-{
-    return recent_files_setting_is_enabled (sidebar) && recent_scheme_is_supported ();
-}
-
-static gboolean
 path_is_home_dir (const char *path)
 {
     GFile *home_dir;
@@ -508,11 +545,11 @@ get_home_directory_uri (void)
 }
 
 static char *
-get_desktop_directory_uri (void)
+get_special_directory_uri (GUserDirectory directory)
 {
     const char *name;
 
-    name = g_get_user_special_dir (G_USER_DIRECTORY_DESKTOP);
+    name = g_get_user_special_dir (directory);
 
     /* "To disable a directory, point it to the homedir."
      * See http://freedesktop.org/wiki/Software/xdg-user-dirs
@@ -524,6 +561,32 @@ get_desktop_directory_uri (void)
     }
 
     return g_filename_to_uri (name, NULL, NULL);
+}
+
+static void
+add_special_dir_place (NautilusSidebar *sidebar,
+                       GUserDirectory   directory,
+                       const char      *icon_name,
+                       const char      *name,
+                       const char      *tooltip)
+{
+    GIcon *start_icon;
+    char *uri;
+
+    uri = get_special_directory_uri (directory);
+    if (uri == NULL)
+    {
+        return;
+    }
+
+    start_icon = g_themed_icon_new_with_default_fallbacks (icon_name);
+    add_place (sidebar, NAUTILUS_SIDEBAR_ROW_BUILT_IN,
+               NAUTILUS_SIDEBAR_SECTION_ENTRY_POINTS,
+               name, start_icon, NULL, uri,
+               NULL, NULL, NULL, NULL, 0,
+               tooltip);
+    g_object_unref (start_icon);
+    g_free (uri);
 }
 
 typedef struct
@@ -601,9 +664,9 @@ create_cloud_provider_account_row (NautilusSidebar       *sidebar,
         tooltip = g_strdup_printf (_("Open %s"), name);
 
         add_place (sidebar, NAUTILUS_SIDEBAR_ROW_BUILT_IN,
-                   NAUTILUS_SIDEBAR_SECTION_CLOUD,
+                   NAUTILUS_SIDEBAR_SECTION_NETWORK,
                    name, start_icon, end_icon, mount_uri,
-                   NULL, NULL, NULL, account, 0,
+                   NULL, NULL, NULL, account, 1,
                    tooltip);
 
         g_free (tooltip);
@@ -689,64 +752,45 @@ update_places (NautilusSidebar *sidebar)
     home_uri = get_home_directory_uri ();
     start_icon = g_themed_icon_new_with_default_fallbacks (ICON_NAME_HOME);
     add_place (sidebar, NAUTILUS_SIDEBAR_ROW_BUILT_IN,
-               NAUTILUS_SIDEBAR_SECTION_DEFAULT_LOCATIONS,
+               NAUTILUS_SIDEBAR_SECTION_ENTRY_POINTS,
                _("Home"), start_icon, NULL, home_uri,
                NULL, NULL, NULL, NULL, 0,
                _("Open Personal Folder"));
     g_object_unref (start_icon);
     g_free (home_uri);
 
-    if (should_show_recent (sidebar))
-    {
-        start_icon = g_themed_icon_new_with_default_fallbacks ("document-open-recent-symbolic");
-        add_place (sidebar, NAUTILUS_SIDEBAR_ROW_BUILT_IN,
-                   NAUTILUS_SIDEBAR_SECTION_DEFAULT_LOCATIONS,
-                   _("Recent"), start_icon, NULL, SCHEME_RECENT ":///",
-                   NULL, NULL, NULL, NULL, 0,
-                   _("Recent Files"));
-        g_object_unref (start_icon);
-    }
-
-    start_icon = g_themed_icon_new_with_default_fallbacks ("starred-symbolic");
-    add_place (sidebar, NAUTILUS_SIDEBAR_ROW_BUILT_IN,
-               NAUTILUS_SIDEBAR_SECTION_DEFAULT_LOCATIONS,
-               _("Starred"), start_icon, NULL, SCHEME_STARRED ":///",
-               NULL, NULL, NULL, NULL, 0,
-               _("Starred Files"));
-    g_object_unref (start_icon);
-
-    /* desktop */
-    if (sidebar->show_desktop)
-    {
-        char *mount_uri = get_desktop_directory_uri ();
-        if (mount_uri)
-        {
-            start_icon = g_themed_icon_new_with_default_fallbacks (ICON_NAME_DESKTOP);
-            add_place (sidebar, NAUTILUS_SIDEBAR_ROW_BUILT_IN,
-                       NAUTILUS_SIDEBAR_SECTION_DEFAULT_LOCATIONS,
-                       _("Desktop"), start_icon, NULL, mount_uri,
-                       NULL, NULL, NULL, NULL, 0,
-                       _("Open the contents of your desktop in a folder"));
-            g_object_unref (start_icon);
-            g_free (mount_uri);
-        }
-    }
-
-    /* Network view */
-    start_icon = g_themed_icon_new_with_default_fallbacks (ICON_NAME_NETWORK_VIEW);
-    add_place (sidebar, NAUTILUS_SIDEBAR_ROW_BUILT_IN,
-               NAUTILUS_SIDEBAR_SECTION_DEFAULT_LOCATIONS,
-               _("Network"), start_icon, NULL, SCHEME_NETWORK_VIEW ":///",
-               NULL, NULL, NULL, NULL, 0,
-               _("Open Network Locations"));
-    g_object_unref (start_icon);
+    /* XDG user directories */
+    add_special_dir_place (sidebar, G_USER_DIRECTORY_DESKTOP,
+                           ICON_NAME_DESKTOP,
+                           _("Desktop"),
+                           _("Open the contents of your desktop in a folder"));
+    add_special_dir_place (sidebar, G_USER_DIRECTORY_DOCUMENTS,
+                           "folder-documents-symbolic",
+                           _("Documents"),
+                           _("Open the Documents folder"));
+    add_special_dir_place (sidebar, G_USER_DIRECTORY_DOWNLOAD,
+                           "folder-download-symbolic",
+                           _("Downloads"),
+                           _("Open the Downloads folder"));
+    add_special_dir_place (sidebar, G_USER_DIRECTORY_MUSIC,
+                           "folder-music-symbolic",
+                           _("Music"),
+                           _("Open the Music folder"));
+    add_special_dir_place (sidebar, G_USER_DIRECTORY_PICTURES,
+                           "folder-pictures-symbolic",
+                           _("Pictures"),
+                           _("Open the Pictures folder"));
+    add_special_dir_place (sidebar, G_USER_DIRECTORY_VIDEOS,
+                           "folder-videos-symbolic",
+                           _("Videos"),
+                           _("Open the Videos folder"));
 
     /* Trash */
     if (sidebar->show_trash)
     {
         start_icon = nautilus_trash_monitor_get_symbolic_icon ();
         sidebar->trash_row = add_place (sidebar, NAUTILUS_SIDEBAR_ROW_BUILT_IN,
-                                        NAUTILUS_SIDEBAR_SECTION_DEFAULT_LOCATIONS,
+                                        NAUTILUS_SIDEBAR_SECTION_ENTRY_POINTS,
                                         _("Trash"), start_icon, NULL, SCHEME_TRASH ":///",
                                         NULL, NULL, NULL, NULL, 0,
                                         _("Open Trash"));
@@ -1044,6 +1088,14 @@ update_places (NautilusSidebar *sidebar)
     g_object_unref (new_bookmark_icon);
 
     /* network */
+    start_icon = g_themed_icon_new_with_default_fallbacks (ICON_NAME_NETWORK_VIEW);
+    add_place (sidebar, NAUTILUS_SIDEBAR_ROW_BUILT_IN,
+               NAUTILUS_SIDEBAR_SECTION_NETWORK,
+               _("Network"), start_icon, NULL, SCHEME_NETWORK_VIEW ":///",
+               NULL, NULL, NULL, NULL, 0,
+               _("Open Network Locations"));
+    g_object_unref (start_icon);
+
     network_volumes = g_list_reverse (network_volumes);
     for (l = network_volumes; l != NULL; l = l->next)
     {
@@ -1062,7 +1114,7 @@ update_places (NautilusSidebar *sidebar)
             tooltip = g_strdup_printf (_("Mount and Open “%s”"), name);
 
             add_place (sidebar, NAUTILUS_SIDEBAR_ROW_EXTERNAL_MOUNT,
-                       NAUTILUS_SIDEBAR_SECTION_MOUNTS,
+                       NAUTILUS_SIDEBAR_SECTION_NETWORK,
                        name, start_icon, NULL, NULL,
                        NULL, volume, NULL, NULL, 0, tooltip);
             g_object_unref (start_icon);
@@ -1083,7 +1135,7 @@ update_places (NautilusSidebar *sidebar)
         name = g_mount_get_name (mount);
         tooltip = g_file_get_parse_name (root);
         add_place (sidebar, NAUTILUS_SIDEBAR_ROW_EXTERNAL_MOUNT,
-                   NAUTILUS_SIDEBAR_SECTION_MOUNTS,
+                   NAUTILUS_SIDEBAR_SECTION_NETWORK,
                    name, start_icon, NULL, mount_uri,
                    NULL, NULL, mount, NULL, 0, tooltip);
         g_object_unref (root);
@@ -3379,21 +3431,27 @@ list_box_sort_func (GtkListBoxRow *row1,
         return place_type_1 - place_type_2;
     }
 
-    if (section_type_1 == NAUTILUS_SIDEBAR_SECTION_MOUNTS)
+    if (section_type_1 == NAUTILUS_SIDEBAR_SECTION_MOUNTS ||
+        section_type_1 == NAUTILUS_SIDEBAR_SECTION_NETWORK)
     {
         g_autoptr (GVolume) volume_1 = NULL, volume_2 = NULL;
 
         g_object_get (row1, "volume", &volume_1, NULL);
         g_object_get (row2, "volume", &volume_2, NULL);
 
-        int retval = compare_volume (volume_1, volume_2);
-
-        if (retval != 0)
+        /* Rows without a volume (e.g. the Network entry or cloud accounts)
+         * keep their explicit order index. */
+        if (volume_1 != NULL || volume_2 != NULL)
         {
-            return retval;
-        }
+            int retval = compare_volume (volume_1, volume_2);
 
-        return g_utf8_collate (label_1, label_2);
+            if (retval != 0)
+            {
+                return retval;
+            }
+
+            return g_utf8_collate (label_1, label_2);
+        }
     }
 
     return index_1 - index_2;
