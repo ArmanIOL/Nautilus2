@@ -18,6 +18,7 @@
 #include "nautilus-enum-types.h"
 
 #include <gio/gio.h>
+#include <gio/gunixmounts.h>
 #include <string.h>
 #ifdef HAVE_CLOUDPROVIDERS
 #include <cloudproviders.h>
@@ -708,6 +709,17 @@ update_volume_labels (NautilusSidebar *sidebar)
         }
 
         size = get_row_volume_size (row);
+        if (size == 0)
+        {
+            /* Unmounted block devices are described by their sysfs size, which
+             * is stored on the row while it is created. */
+            guint64 *stored_size = g_object_get_data (G_OBJECT (row), "block-size");
+
+            if (stored_size != NULL)
+            {
+                size = *stored_size;
+            }
+        }
         if (size > 0)
         {
             size_text = g_format_size (size);
@@ -724,6 +736,332 @@ update_volume_labels (NautilusSidebar *sidebar)
 
         g_object_set (row, "label", new_label, NULL);
         volume_number++;
+    }
+}
+
+typedef struct
+{
+    char *name;
+    char *device;
+    char *mountpoint;
+    char *fstype;
+    guint64 size;
+    gboolean mounted;
+} BlockVolume;
+
+static void
+block_volume_free (BlockVolume *volume)
+{
+    g_free (volume->name);
+    g_free (volume->device);
+    g_free (volume->mountpoint);
+    g_free (volume->fstype);
+    g_free (volume);
+}
+
+static char *
+read_udev_property (const char *device,
+                    const char *key)
+{
+    g_autofree char *path = NULL;
+    g_autofree char *contents = NULL;
+    g_autofree char *prefix = NULL;
+    char **lines;
+
+    path = g_strdup_printf ("/run/udev/data/b%s", device);
+    if (!g_file_get_contents (path, &contents, NULL, NULL))
+    {
+        return NULL;
+    }
+
+    prefix = g_strdup_printf ("E:%s=", key);
+    lines = g_strsplit (contents, "\n", -1);
+
+    for (guint i = 0; lines[i] != NULL; i++)
+    {
+        if (g_str_has_prefix (lines[i], prefix))
+        {
+            char *value = g_strdup (lines[i] + strlen (prefix));
+
+            g_strfreev (lines);
+
+            return value;
+        }
+    }
+
+    g_strfreev (lines);
+
+    return NULL;
+}
+
+/* Do not show system and recovery partitions as user volumes. */
+static gboolean
+is_system_partition_type (const char *partition_type)
+{
+    static const char *ignored_types[] = {
+        "c12a7328-f81f-11d2-ba4b-00a0c93ec93b", /* EFI System */
+        "e3c9e316-0b5c-4db8-817d-f92df00215ae", /* Microsoft Reserved */
+        "de94bba4-06d1-4d40-a16a-bfd50179d6ac", /* Windows Recovery */
+        "21686148-6449-6e6f-744e-656564454649", /* BIOS Boot */
+        "0657fd6d-a4ab-43c4-84e5-0933c84b4f4f", /* Linux Swap */
+    };
+
+    if (partition_type == NULL)
+    {
+        return FALSE;
+    }
+
+    for (guint i = 0; i < G_N_ELEMENTS (ignored_types); i++)
+    {
+        if (g_ascii_strcasecmp (partition_type, ignored_types[i]) == 0)
+        {
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+static gboolean
+is_system_mountpoint (const char *mountpoint)
+{
+    return g_strcmp0 (mountpoint, "/boot") == 0 ||
+           g_strcmp0 (mountpoint, "/boot/efi") == 0 ||
+           g_strcmp0 (mountpoint, "/efi") == 0;
+}
+
+static GUnixMountEntry *
+find_unix_mount (GList       *mounts,
+                 const char  *device,
+                 const char **mountpoint)
+{
+    GUnixMountEntry *best = NULL;
+    const char *best_path = NULL;
+
+    for (GList *l = mounts; l != NULL; l = l->next)
+    {
+        const char *mount_device = g_unix_mount_get_device_path (l->data);
+        const char *mount_path = g_unix_mount_get_mount_path (l->data);
+
+        if (g_strcmp0 (mount_device, device) != 0)
+        {
+            continue;
+        }
+
+        /* A btrfs device can be mounted at several paths (for example / and
+         * /home). Prefer the shortest one, which is the topmost mount. */
+        if (best == NULL || strlen (mount_path) < strlen (best_path))
+        {
+            best = l->data;
+            best_path = mount_path;
+        }
+    }
+
+    if (best != NULL && mountpoint != NULL)
+    {
+        *mountpoint = best_path;
+    }
+
+    return best;
+}
+
+static GVolume *
+find_volume_for_device (NautilusSidebar *sidebar,
+                        const char      *device)
+{
+    GList *volumes;
+    GVolume *found = NULL;
+
+    volumes = g_volume_monitor_get_volumes (sidebar->volume_monitor);
+
+    for (GList *l = volumes; l != NULL && found == NULL; l = l->next)
+    {
+        g_autofree char *identifier = g_volume_get_identifier (l->data,
+                                                               G_VOLUME_IDENTIFIER_KIND_UNIX_DEVICE);
+
+        if (g_strcmp0 (identifier, device) == 0)
+        {
+            found = g_object_ref (l->data);
+        }
+    }
+
+    g_list_free_full (volumes, g_object_unref);
+
+    return found;
+}
+
+static gint
+compare_block_volumes (gconstpointer a,
+                       gconstpointer b)
+{
+    const BlockVolume *volume_a = *(BlockVolume * const *) a;
+    const BlockVolume *volume_b = *(BlockVolume * const *) b;
+
+    /* Unmounted media first, then the root filesystem, then the rest. */
+    if (volume_a->mounted != volume_b->mounted)
+    {
+        return volume_a->mounted ? 1 : -1;
+    }
+
+    if (volume_a->mounted)
+    {
+        gboolean root_a = g_strcmp0 (volume_a->mountpoint, "/") == 0;
+        gboolean root_b = g_strcmp0 (volume_b->mountpoint, "/") == 0;
+
+        if (root_a != root_b)
+        {
+            return root_a ? -1 : 1;
+        }
+
+        int result = g_strcmp0 (volume_a->mountpoint, volume_b->mountpoint);
+
+        if (result != 0)
+        {
+            return result;
+        }
+    }
+
+    return g_strcmp0 (volume_a->device, volume_b->device);
+}
+
+/* Build the "Volumes" section from the kernel's block devices instead of
+ * relying on the GVfs volume monitor, which does not expose every mounted
+ * filesystem (for example a separate /home subvolume). */
+static void
+add_block_device_places (NautilusSidebar *sidebar)
+{
+    g_autoptr (GDir) dir = NULL;
+    g_autoptr (GPtrArray) volumes = NULL;
+    GList *mounts;
+    const char *name;
+
+    dir = g_dir_open ("/sys/class/block", 0, NULL);
+    if (dir == NULL)
+    {
+        return;
+    }
+
+    mounts = g_unix_mounts_get (NULL);
+    volumes = g_ptr_array_new_with_free_func ((GDestroyNotify) block_volume_free);
+
+    while ((name = g_dir_read_name (dir)) != NULL)
+    {
+        g_autofree char *dir_path = NULL;
+        g_autofree char *size_contents = NULL;
+        g_autofree char *dev = NULL;
+        g_autofree char *usage = NULL;
+        g_autofree char *fstype = NULL;
+        g_autofree char *partition_type = NULL;
+        g_autofree char *device = NULL;
+        const char *mountpoint = NULL;
+        BlockVolume *volume;
+
+        if (g_str_has_prefix (name, "loop") || g_str_has_prefix (name, "ram"))
+        {
+            continue;
+        }
+
+        dir_path = g_strdup_printf ("/sys/class/block/%s", name);
+        g_autofree char *size_path = g_build_filename (dir_path, "size", NULL);
+
+        if (!g_file_get_contents (size_path, &size_contents, NULL, NULL))
+        {
+            continue;
+        }
+
+        guint64 size = g_ascii_strtoull (size_contents, NULL, 10) * 512;
+
+        if (size == 0)
+        {
+            continue;
+        }
+
+        g_autofree char *dev_path = g_build_filename (dir_path, "dev", NULL);
+
+        if (!g_file_get_contents (dev_path, &dev, NULL, NULL))
+        {
+            continue;
+        }
+
+        g_strstrip (dev);
+        usage = read_udev_property (dev, "ID_FS_USAGE");
+
+        if (g_strcmp0 (usage, "filesystem") != 0)
+        {
+            continue;
+        }
+
+        fstype = read_udev_property (dev, "ID_FS_TYPE");
+
+        if (g_strcmp0 (fstype, "swap") == 0 ||
+            g_strcmp0 (fstype, "crypto_LUKS") == 0)
+        {
+            continue;
+        }
+
+        partition_type = read_udev_property (dev, "ID_PART_ENTRY_TYPE");
+
+        if (is_system_partition_type (partition_type))
+        {
+            continue;
+        }
+
+        device = g_strdup_printf ("/dev/%s", name);
+
+        if (find_unix_mount (mounts, device, &mountpoint) != NULL)
+        {
+            if (is_system_mountpoint (mountpoint))
+            {
+                continue;
+            }
+        }
+
+        volume = g_new0 (BlockVolume, 1);
+        volume->name = g_strdup (name);
+        volume->device = g_steal_pointer (&device);
+        volume->mountpoint = g_strdup (mountpoint);
+        volume->fstype = g_steal_pointer (&fstype);
+        volume->size = size;
+        volume->mounted = mountpoint != NULL;
+
+        g_ptr_array_add (volumes, volume);
+    }
+
+    g_list_free_full (mounts, (GDestroyNotify) g_unix_mount_free);
+
+    g_ptr_array_sort (volumes, compare_block_volumes);
+
+    for (guint i = 0; i < volumes->len; i++)
+    {
+        BlockVolume *volume = g_ptr_array_index (volumes, i);
+        g_autoptr (GVolume) gvolume = NULL;
+        g_autoptr (GIcon) start_icon = NULL;
+        g_autofree char *uri = NULL;
+        g_autofree char *tooltip = NULL;
+        GtkWidget *row;
+        guint64 *size_data;
+
+        if (volume->mounted)
+        {
+            uri = g_filename_to_uri (volume->mountpoint, NULL, NULL);
+            tooltip = g_strdup (volume->mountpoint);
+        }
+        else
+        {
+            gvolume = find_volume_for_device (sidebar, volume->device);
+            tooltip = g_strdup_printf (_("Mount and Open “%s”"), volume->name);
+        }
+
+        start_icon = g_themed_icon_new_with_default_fallbacks ("drive-harddisk-symbolic");
+
+        row = add_place (sidebar, NAUTILUS_SIDEBAR_ROW_INTERNAL_MOUNT,
+                         NAUTILUS_SIDEBAR_SECTION_MOUNTS,
+                         volume->name, start_icon, NULL, uri,
+                         NULL, gvolume, NULL, NULL, i, tooltip);
+
+        size_data = g_new (guint64, 1);
+        *size_data = volume->size;
+        g_object_set_data_full (G_OBJECT (row), "block-size", size_data, g_free);
     }
 }
 
@@ -973,6 +1311,9 @@ update_places (NautilusSidebar *sidebar)
     }
 #endif
 
+    /* Build the Volumes section from block devices. */
+    add_block_device_places (sidebar);
+
     /* go through all connected drives */
     drives = g_volume_monitor_get_connected_drives (sidebar->volume_monitor);
 
@@ -996,55 +1337,6 @@ update_places (NautilusSidebar *sidebar)
                 }
                 g_free (identifier);
 
-                mount = g_volume_get_mount (volume);
-                if (mount != NULL)
-                {
-                    char *mount_uri;
-
-                    /* Show mounted volume in the sidebar */
-                    start_icon = g_mount_get_symbolic_icon (mount);
-                    root = g_mount_get_default_location (mount);
-                    mount_uri = g_file_get_uri (root);
-                    name = g_mount_get_name (mount);
-                    tooltip = g_file_get_parse_name (root);
-
-                    add_place (sidebar, (is_external_volume (volume) ?
-                                         NAUTILUS_SIDEBAR_ROW_EXTERNAL_MOUNT :
-                                         NAUTILUS_SIDEBAR_ROW_INTERNAL_MOUNT),
-                               NAUTILUS_SIDEBAR_SECTION_MOUNTS,
-                               name, start_icon, NULL, mount_uri,
-                               drive, volume, mount, NULL, 0, tooltip);
-                    g_object_unref (root);
-                    g_object_unref (mount);
-                    g_object_unref (start_icon);
-                    g_free (tooltip);
-                    g_free (name);
-                    g_free (mount_uri);
-                }
-                else
-                {
-                    /* Do show the unmounted volumes in the sidebar;
-                     * this is so the user can mount it (in case automounting
-                     * is off).
-                     *
-                     * Also, even if automounting is enabled, this gives a visual
-                     * cue that the user should remember to yank out the media if
-                     * he just unmounted it.
-                     */
-                    start_icon = g_volume_get_symbolic_icon (volume);
-                    name = g_volume_get_name (volume);
-                    tooltip = g_strdup_printf (_("Mount and Open “%s”"), name);
-
-                    add_place (sidebar, (is_external_volume (volume) ?
-                                         NAUTILUS_SIDEBAR_ROW_EXTERNAL_MOUNT :
-                                         NAUTILUS_SIDEBAR_ROW_INTERNAL_MOUNT),
-                               NAUTILUS_SIDEBAR_SECTION_MOUNTS,
-                               name, start_icon, NULL, NULL,
-                               drive, volume, NULL, NULL, 0, tooltip);
-                    g_object_unref (start_icon);
-                    g_free (name);
-                    g_free (tooltip);
-                }
                 g_object_unref (volume);
             }
             g_list_free (volumes);
@@ -1102,43 +1394,6 @@ update_places (NautilusSidebar *sidebar)
         }
         g_free (identifier);
 
-        mount = g_volume_get_mount (volume);
-        if (mount != NULL)
-        {
-            char *mount_uri;
-
-            start_icon = g_mount_get_symbolic_icon (mount);
-            root = g_mount_get_default_location (mount);
-            mount_uri = g_file_get_uri (root);
-            tooltip = g_file_get_parse_name (root);
-            name = g_mount_get_name (mount);
-            add_place (sidebar, (is_external_volume (volume) ?
-                                 NAUTILUS_SIDEBAR_ROW_EXTERNAL_MOUNT :
-                                 NAUTILUS_SIDEBAR_ROW_INTERNAL_MOUNT),
-                       NAUTILUS_SIDEBAR_SECTION_MOUNTS,
-                       name, start_icon, NULL, mount_uri,
-                       NULL, volume, mount, NULL, 0, tooltip);
-            g_object_unref (mount);
-            g_object_unref (root);
-            g_object_unref (start_icon);
-            g_free (name);
-            g_free (tooltip);
-            g_free (mount_uri);
-        }
-        else
-        {
-            /* see comment above in why we add an icon for an unmounted mountable volume */
-            start_icon = g_volume_get_symbolic_icon (volume);
-            name = g_volume_get_name (volume);
-            add_place (sidebar, (is_external_volume (volume) ?
-                                 NAUTILUS_SIDEBAR_ROW_EXTERNAL_MOUNT :
-                                 NAUTILUS_SIDEBAR_ROW_INTERNAL_MOUNT),
-                       NAUTILUS_SIDEBAR_SECTION_MOUNTS,
-                       name, start_icon, NULL, NULL,
-                       NULL, volume, NULL, NULL, 0, name);
-            g_object_unref (start_icon);
-            g_free (name);
-        }
         g_object_unref (volume);
     }
     g_list_free (volumes);
@@ -1148,8 +1403,6 @@ update_places (NautilusSidebar *sidebar)
 
     for (l = mounts; l != NULL; l = l->next)
     {
-        char *mount_uri;
-
         mount = l->data;
         if (g_mount_is_shadowed (mount))
         {
@@ -1165,27 +1418,16 @@ update_places (NautilusSidebar *sidebar)
         }
         root = g_mount_get_default_location (mount);
 
-        if (!g_file_is_native (root))
+        if (g_file_is_native (root))
         {
-            network_mounts = g_list_prepend (network_mounts, mount);
+            /* Native filesystems are listed from block devices. */
             g_object_unref (root);
+            g_object_unref (mount);
             continue;
         }
 
-        start_icon = g_mount_get_symbolic_icon (mount);
-        mount_uri = g_file_get_uri (root);
-        name = g_mount_get_name (mount);
-        tooltip = g_file_get_parse_name (root);
-        add_place (sidebar, NAUTILUS_SIDEBAR_ROW_EXTERNAL_MOUNT,
-                   NAUTILUS_SIDEBAR_SECTION_MOUNTS,
-                   name, start_icon, NULL, mount_uri,
-                   NULL, NULL, mount, NULL, 0, tooltip);
+        network_mounts = g_list_prepend (network_mounts, mount);
         g_object_unref (root);
-        g_object_unref (mount);
-        g_object_unref (start_icon);
-        g_free (name);
-        g_free (mount_uri);
-        g_free (tooltip);
     }
     g_list_free (mounts);
 
@@ -1208,6 +1450,12 @@ update_places (NautilusSidebar *sidebar)
 
         mount_uri = g_file_get_uri (location);
 
+        /* The root filesystem is listed in the Volumes section. */
+        if (g_strcmp0 (mount_uri, "file:///") == 0)
+        {
+            continue;
+        }
+
         if (bookmark_is_duplicate (location))
         {
             continue;
@@ -1217,9 +1465,7 @@ update_places (NautilusSidebar *sidebar)
         tooltip = is_native ? g_file_get_path (location) : g_uri_unescape_string (mount_uri, NULL);
 
         row = add_place (sidebar, NAUTILUS_SIDEBAR_ROW_BOOKMARK,
-                         g_strcmp0 (mount_uri, "file:///") == 0
-                         ? NAUTILUS_SIDEBAR_SECTION_MOUNTS
-                         : NAUTILUS_SIDEBAR_SECTION_BOOKMARKS,
+                         NAUTILUS_SIDEBAR_SECTION_BOOKMARKS,
                          nautilus_bookmark_get_name (l->data),
                          NULL,
                          NULL, mount_uri, NULL, NULL, NULL, NULL, index, tooltip);
