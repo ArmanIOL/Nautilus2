@@ -7268,6 +7268,10 @@ msgid "Preview"
 msgstr "Предпросмотр"
 
 #: src/resources/ui/nautilus-window.blp
+msgid "Show _Preview Panel"
+msgstr "Показать панель _предпросмотра"
+
+#: src/resources/ui/nautilus-window.blp
 msgid "Close Preview"
 msgstr "Закрыть предпросмотр"
 

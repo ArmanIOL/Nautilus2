@@ -1226,6 +1226,7 @@ nautilus_window_initialize_actions (NautilusWindow *window)
     nautilus_application_set_accelerator (app, "win.new-tab", "<control>t");
     nautilus_application_set_accelerator (app, "win.open-tab-overview", "<shift><control>o");
     nautilus_application_set_accelerator (app, "win.close-current-view", "<control>w");
+    nautilus_application_set_accelerator (app, "win.toggle-preview", "F4");
 
     nautilus_application_set_accelerator (app, "win.undo", "<control>z");
     nautilus_application_set_accelerator (app, "win.redo", "<shift><control>z");
