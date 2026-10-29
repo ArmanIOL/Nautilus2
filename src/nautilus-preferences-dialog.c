@@ -69,6 +69,8 @@
         "tooltip_date_accessed_row"
 #define NAUTILUS_PREFERENCES_DIALOG_TOOLTIP_DATE_CREATED_WIDGET                \
         "tooltip_date_created_row"
+#define NAUTILUS_PREFERENCES_DIALOG_TERMINAL_COMMAND_WIDGET                    \
+        "terminal_command_row"
 
 /* toggle group preferences */
 #define NAUTILUS_PREFERENCES_DIALOG_OPEN_ACTION_TOGGLE_GROUP                   \
@@ -105,6 +107,16 @@ bind_builder_bool (GtkBuilder *builder,
 {
     g_settings_bind (settings, prefs, gtk_builder_get_object (builder, widget_name),
                      "active", G_SETTINGS_BIND_DEFAULT);
+}
+
+static void
+bind_builder_string (GtkBuilder *builder,
+                     GSettings  *settings,
+                     const char *widget_name,
+                     const char *prefs)
+{
+    g_settings_bind (settings, prefs, gtk_builder_get_object (builder, widget_name),
+                     "text", G_SETTINGS_BIND_DEFAULT);
 }
 
 /* Translators: Both %s will be replaced with formatted timestamps. */
@@ -346,6 +358,9 @@ nautilus_preferences_dialog_setup (GtkBuilder *builder)
     bind_builder_bool (builder, nautilus_preferences,
                        NAUTILUS_PREFERENCES_DIALOG_PREVIEW_PANEL_WIDGET,
                        NAUTILUS_PREFERENCES_SHOW_PREVIEW_PANEL);
+    bind_builder_string (builder, nautilus_preferences,
+                         NAUTILUS_PREFERENCES_DIALOG_TERMINAL_COMMAND_WIDGET,
+                         NAUTILUS_PREFERENCES_TERMINAL_COMMAND);
     bind_builder_bool (builder, nautilus_preferences,
                        NAUTILUS_PREFERENCES_DIALOG_FOLDER_PREVIEW_ICONS_WIDGET,
                        NAUTILUS_PREFERENCES_FOLDER_PREVIEW_ICONS);

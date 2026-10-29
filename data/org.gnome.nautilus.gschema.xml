@@ -176,6 +176,11 @@
       <summary>Show the access date in file tooltips</summary>
       <description>If set to true, file tooltips include the date the file was last accessed.</description>
     </key>
+    <key type="s" name="terminal-command">
+      <default>''</default>
+      <summary>Terminal command used by the context menu</summary>
+      <description>Command used to open a terminal from the context menu. It may contain %d, which is replaced with the folder path, and %f, which is replaced with the path of the file to run. Leave empty to use the system default terminal.</description>
+    </key>
     <key type="b" name="tooltip-date-created">
       <default>true</default>
       <summary>Show the creation date in file tooltips</summary>

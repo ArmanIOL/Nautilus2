@@ -59,6 +59,18 @@ Adw.PreferencesDialog preferences_dialog {
     }
 
     Adw.PreferencesGroup {
+      title: _("Terminal");
+      description: _(
+        "Command used by “Open in Terminal”. Leave it empty to use the system default terminal. Use %d for the folder path and %f for the file path, for example: blackbox-terminal -w %d"
+      );
+
+      Adw.EntryRow terminal_command_row {
+        title: _("Terminal _Command");
+        use-underline: true;
+      }
+    }
+
+    Adw.PreferencesGroup {
       title: _("Performance");
       description: _(
         "These features may cause slowdowns and excess network usage, especially when browsing files outside this device, such as on a remote server."

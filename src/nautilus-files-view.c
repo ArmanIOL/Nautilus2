@@ -2382,6 +2382,154 @@ action_new_folder_with_selection (GSimpleAction *action,
     nautilus_files_view_new_folder (NAUTILUS_FILES_VIEW (user_data), TRUE);
 }
 
+static gchar *
+get_configured_terminal (void)
+{
+    g_autofree gchar *command = nautilus_preferences_get_string (NAUTILUS_PREFERENCES_TERMINAL_COMMAND,
+                                                                 "");
+    gchar *stripped;
+
+    if (command == NULL)
+    {
+        return NULL;
+    }
+
+    stripped = g_strdup (command);
+    g_strstrip (stripped);
+
+    if (*stripped == '\0')
+    {
+        g_free (stripped);
+
+        return NULL;
+    }
+
+    return stripped;
+}
+
+static gboolean
+terminal_is_configured (void)
+{
+    g_autofree gchar *command = get_configured_terminal ();
+
+    return command != NULL;
+}
+
+/* Expand %d to the folder and %f to the file, shell-quoting both so that
+ * paths with spaces survive g_shell_parse_argv(). */
+static gchar **
+build_terminal_argv (const gchar *template,
+                     const gchar *directory,
+                     const gchar *file,
+                     gboolean    *used_file)
+{
+    g_autofree gchar *quoted_dir = g_shell_quote (directory);
+    g_autofree gchar *quoted_file = file != NULL ? g_shell_quote (file) : NULL;
+    g_autoptr (GString) expanded = g_string_new (NULL);
+    g_auto (GStrv) argv = NULL;
+    gint argc = 0;
+    g_autoptr (GError) error = NULL;
+
+    for (const gchar *p = template; *p != '\0'; p++)
+    {
+        if (p[0] == '%' && p[1] == '%')
+        {
+            g_string_append_c (expanded, '%');
+            p++;
+        }
+        else if (p[0] == '%' && p[1] == 'd')
+        {
+            g_string_append (expanded, quoted_dir);
+            p++;
+        }
+        else if (p[0] == '%' && p[1] == 'f')
+        {
+            if (quoted_file != NULL)
+            {
+                g_string_append (expanded, quoted_file);
+
+                if (used_file != NULL)
+                {
+                    *used_file = TRUE;
+                }
+            }
+
+            p++;
+        }
+        else
+        {
+            g_string_append_c (expanded, *p);
+        }
+    }
+
+    if (!g_shell_parse_argv (expanded->str, &argc, &argv, &error) || argc == 0)
+    {
+        return NULL;
+    }
+
+    return g_steal_pointer (&argv);
+}
+
+static gboolean
+spawn_in_terminal (const gchar *directory,
+                   const gchar *file)
+{
+    g_autofree gchar *template = get_configured_terminal ();
+    gboolean used_file = FALSE;
+    g_auto (GStrv) base_argv = NULL;
+    g_autoptr (GPtrArray) args = NULL;
+    g_autoptr (GError) error = NULL;
+
+    if (template == NULL)
+    {
+        return FALSE;
+    }
+
+    base_argv = build_terminal_argv (template, directory, file, &used_file);
+
+    if (base_argv == NULL)
+    {
+        return FALSE;
+    }
+
+    args = g_ptr_array_new_with_free_func (g_free);
+
+    for (guint i = 0; base_argv[i] != NULL; i++)
+    {
+        g_ptr_array_add (args, g_strdup (base_argv[i]));
+    }
+
+    /* Terminals such as Black Box run the command following "--". */
+    if (file != NULL && !used_file)
+    {
+        g_ptr_array_add (args, g_strdup ("--"));
+        g_ptr_array_add (args, g_strdup (file));
+    }
+
+    g_ptr_array_add (args, NULL);
+
+    g_autofree gchar *program = g_find_program_in_path (args->pdata[0]);
+
+    /* Black Box was renamed from "blackbox" to "blackbox-terminal". Accept
+     * both so that an existing configuration keeps working after an upgrade. */
+    if (program == NULL &&
+        g_str_has_suffix (args->pdata[0], "blackbox-terminal"))
+    {
+        g_free (args->pdata[0]);
+        args->pdata[0] = g_strdup ("blackbox");
+        g_free (program);
+        program = g_find_program_in_path (args->pdata[0]);
+    }
+
+    if (program == NULL)
+    {
+        return FALSE;
+    }
+
+    return g_spawn_async (directory, (gchar **) args->pdata, NULL,
+                          G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, &error);
+}
+
 static void
 real_open_console (NautilusFile      *file,
                    NautilusFilesView *view)
@@ -2389,6 +2537,19 @@ real_open_console (NautilusFile      *file,
     GtkRoot *window = gtk_widget_get_root (GTK_WIDGET (view));
     GVariant *parameters;
     g_autofree gchar *uri = NULL;
+    g_autofree gchar *path = NULL;
+
+    if (nautilus_file_is_directory (file))
+    {
+        g_autoptr (GFile) location = nautilus_file_get_location (file);
+
+        path = g_file_get_path (location);
+    }
+
+    if (path != NULL && spawn_in_terminal (path, NULL))
+    {
+        return;
+    }
 
     uri = nautilus_file_get_uri (file);
     parameters = g_variant_new_parsed ("([%s], @a{sv} {})", uri);
@@ -6163,8 +6324,7 @@ can_run_in_terminal (NautilusFileList *selection)
 
     file = NAUTILUS_FILE (selection->data);
 
-    if (nautilus_file_is_launchable (file) &&
-        nautilus_file_contains_text (file))
+    if (nautilus_file_is_launchable (file))
     {
         g_autofree gchar *activation_uri = NULL;
         g_autofree gchar *executable_path = NULL;
@@ -6172,7 +6332,7 @@ can_run_in_terminal (NautilusFileList *selection)
         activation_uri = nautilus_file_get_activation_uri (file);
         executable_path = g_filename_from_uri (activation_uri, NULL, NULL);
 
-        if (executable_path != NULL)
+        if (executable_path != NULL && g_file_test (executable_path, G_FILE_TEST_IS_EXECUTABLE))
         {
             return TRUE;
         }
@@ -6205,6 +6365,11 @@ action_run_in_terminal (GSimpleAction *action,
     g_autofree char *quoted_path = g_shell_quote (executable_path);
 
     g_debug ("Launching in terminal %s", quoted_path);
+
+    if (spawn_in_terminal (executable_dir, executable_path))
+    {
+        return;
+    }
 
     g_autofree char *old_working_dir = g_get_current_dir ();
 
@@ -7352,12 +7517,14 @@ nautilus_files_view_update_actions_state (NautilusFilesView *self)
     files_action_set_enabled (self, "console",
                               mode == NAUTILUS_MODE_BROWSE &&
                               list_len_is_one (selection) && nautilus_file_is_directory (selection->data) &&
-                              nautilus_dbus_launcher_is_available (nautilus_dbus_launcher_get (),
-                                                                   NAUTILUS_DBUS_LAUNCHER_CONSOLE));
+                              (terminal_is_configured () ||
+                               nautilus_dbus_launcher_is_available (nautilus_dbus_launcher_get (),
+                                                                    NAUTILUS_DBUS_LAUNCHER_CONSOLE)));
     files_action_set_enabled (self, "current-directory-console",
                               mode == NAUTILUS_MODE_BROWSE &&
-                              nautilus_dbus_launcher_is_available (nautilus_dbus_launcher_get (),
-                                                                   NAUTILUS_DBUS_LAUNCHER_CONSOLE));
+                              (terminal_is_configured () ||
+                               nautilus_dbus_launcher_is_available (nautilus_dbus_launcher_get (),
+                                                                    NAUTILUS_DBUS_LAUNCHER_CONSOLE)));
     files_action_set_enabled (self, "properties",
                               mode == NAUTILUS_MODE_BROWSE &&
                               (is_network_view ?
@@ -7713,7 +7880,7 @@ update_selection_menu (NautilusFilesView *self,
         nautilus_gmenu_set_from_model (G_MENU (object), self->scripts_menu);
     }
 
-    object = gtk_builder_get_object (builder, "open-with-application-section");
+    object = gtk_builder_get_object (builder, "scripts-section");
     nautilus_menu_item_change_attribute (G_MENU_MODEL (object),
                                          "scripts-submenu",
                                          "hidden-when",
@@ -7763,7 +7930,8 @@ update_background_menu (NautilusFilesView *self,
         self->templates_menu_updated = FALSE;
     }
 
-    nautilus_menu_item_change_attribute (G_MENU_MODEL (self->background_menu_model),
+    object = gtk_builder_get_object (builder, "templates-section");
+    nautilus_menu_item_change_attribute (G_MENU_MODEL (object),
                                          "templates-submenu",
                                          "hidden-when",
                                          remove_submenu ? "action-missing" : NULL);

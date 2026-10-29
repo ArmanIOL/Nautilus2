@@ -7399,6 +7399,30 @@ msgstr "Показывать дату _доступа"
 msgid "Show _Creation Date"
 msgstr "Показывать дату _создания"
 
+#: src/resources/menu/nautilus-files-view-context-menus.ui
+msgid "Open in _Terminal"
+msgstr "Открыть в _терминале"
+
+#: src/resources/menu/nautilus-files-view-context-menus.ui
+msgid "Run in _Terminal"
+msgstr "Запустить в _терминале"
+
+#: src/resources/menu/nautilus-files-view-context-menus.ui
+msgid "More _Actions"
+msgstr "Другие _действия"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Terminal"
+msgstr "Терминал"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Command used by “Open in Terminal”. Leave it empty to use the system default terminal. Use %d for the folder path and %f for the file path, for example: blackbox-terminal -w %d"
+msgstr "Команда для «Открыть в терминале». Оставьте пустой, чтобы использовать системный терминал. Используйте %d для пути папки и %f для пути файла, например: blackbox-terminal -w %d"
+
+#: src/resources/ui/nautilus-preferences-dialog.blp
+msgid "Terminal _Command"
+msgstr "Команда _терминала"
+
 #~ msgid "Wallpapers"
 #~ msgstr "Обои"
 
