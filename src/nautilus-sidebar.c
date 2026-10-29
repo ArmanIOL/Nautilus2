@@ -689,9 +689,7 @@ update_volume_labels (NautilusSidebar *sidebar)
          child = gtk_widget_get_next_sibling (child))
     {
         NautilusSidebarSectionType section_type;
-        NautilusSidebarRowType place_type;
         NautilusSidebarRow *row;
-        g_autofree char *label = NULL;
         g_autofree char *size_text = NULL;
         g_autofree char *new_label = NULL;
         guint64 size;
@@ -702,11 +700,7 @@ update_volume_labels (NautilusSidebar *sidebar)
         }
 
         row = NAUTILUS_SIDEBAR_ROW (child);
-        g_object_get (row,
-                      "section-type", &section_type,
-                      "place-type", &place_type,
-                      "label", &label,
-                      NULL);
+        g_object_get (row, "section-type", &section_type, NULL);
 
         if (section_type != NAUTILUS_SIDEBAR_SECTION_MOUNTS)
         {
@@ -719,19 +713,7 @@ update_volume_labels (NautilusSidebar *sidebar)
             size_text = g_format_size (size);
         }
 
-        if (place_type == NAUTILUS_SIDEBAR_ROW_BOOKMARK)
-        {
-            /* The root filesystem keeps its bookmark name. */
-            if (size_text != NULL)
-            {
-                new_label = g_strdup_printf ("%s · %s", label, size_text);
-            }
-            else
-            {
-                continue;
-            }
-        }
-        else if (size_text != NULL)
+        if (size_text != NULL)
         {
             new_label = g_strdup_printf (_("Volume %d — %s"), volume_number, size_text);
         }
@@ -740,15 +722,8 @@ update_volume_labels (NautilusSidebar *sidebar)
             new_label = g_strdup_printf (_("Volume %d"), volume_number);
         }
 
-        if (new_label != NULL)
-        {
-            g_object_set (row, "label", new_label, NULL);
-        }
-
-        if (place_type != NAUTILUS_SIDEBAR_ROW_BOOKMARK)
-        {
-            volume_number++;
-        }
+        g_object_set (row, "label", new_label, NULL);
+        volume_number++;
     }
 }
 
@@ -1332,6 +1307,16 @@ update_places (NautilusSidebar *sidebar)
     /* Number the rows and append their capacities. Must run after all rows are
      * inserted, so that the order matches what is displayed. */
     update_volume_labels (sidebar);
+
+    for (GtkWidget *c = gtk_widget_get_first_child (GTK_WIDGET (sidebar->list_box)); c; c = gtk_widget_get_next_sibling (c))
+    {
+        if (NAUTILUS_IS_SIDEBAR_ROW (c))
+        {
+            g_autofree char *lbl = NULL;
+            g_object_get (c, "label", &lbl, NULL);
+            g_printerr ("SIDEBAR-FINAL: %s\n", lbl);
+        }
+    }
 
     for (GtkWidget *c = gtk_widget_get_first_child (GTK_WIDGET (sidebar->list_box)); c; c = gtk_widget_get_next_sibling (c))
     {
